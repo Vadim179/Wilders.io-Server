@@ -1,0 +1,1 @@
+export { CorsConfig } from "./Cors"

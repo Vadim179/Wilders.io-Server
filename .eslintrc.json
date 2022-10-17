@@ -1,0 +1,20 @@
+{
+  "env": {
+    "browser": true,
+    "commonjs": true,
+    "es2021": true
+  },
+  "ignorePatterns": ["dist/**/*.js"],
+  "extends": "google",
+  "overrides": [],
+  "parserOptions": {
+    "ecmaVersion": "latest"
+  },
+  "rules": {
+    "semi": ["error", "never"],
+    "quotes": ["error", "single"],
+    "no-unused-vars": "warn",
+    "object-curly-spacing": ["error", "always"],
+    "require-jsdoc": "off"
+  }
+}
