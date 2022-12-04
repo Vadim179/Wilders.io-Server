@@ -2,11 +2,12 @@ import Matter from "matter-js";
 import { Server } from "socket.io";
 import { IExtendedSocket } from "types";
 import { GameMap } from "./config";
-import { PhysicsEngine } from "./PhysicsEngine";
-import { getRandomSpawnPosition } from "./utils";
-import { Player } from "./Player";
+import { PhysicsEngine, Ticker } from "./systems";
+import { getRandomSpawnPosition, getSockets } from "./utils";
+import { Player } from "./entities";
 
-export function SocketListener(io: Server) {
+export function initializeGame(io: Server) {
+  // Create physics engine
   const engine = new PhysicsEngine().load(
     ...GameMap.entities.map(({ x, y }) => {
       // TODO: Create radius config
@@ -14,20 +15,28 @@ export function SocketListener(io: Server) {
     })
   );
 
+  // Start the physics engine
   engine.update(() => handleEngineTick(io)).run();
 
+  // Start player stats timer
+  new Ticker(io).start();
+
+  // Handle player connection
   io.on("connection", (socket) => {
     const mySocket = socket as IExtendedSocket;
 
+    // Create player entity
     const spawnPosition = getRandomSpawnPosition();
-    mySocket.emit("spawn", spawnPosition);
 
     mySocket.player = new Player({
       id: mySocket.id,
       username: mySocket.handshake.query.username as string,
       body: engine.loadPlayer(spawnPosition)
-    });
+    }).start();
 
+    mySocket.emit("spawn", spawnPosition);
+
+    // Handle player actions
     mySocket.on("move", ([direction, value]: ["x" | "y", number]) => {
       mySocket.player[direction] = value;
     });
@@ -37,32 +46,23 @@ export function SocketListener(io: Server) {
       Matter.Body.setAngle(mySocket.player.body, rotation);
     });
 
-    mySocket.on("attack", (attacking: boolean) => {
-      if (attacking && Date.now() - mySocket.player.lastAttack > 500) {
-        mySocket.player.lastAttack = Date.now();
-        mySocket.player.attacking = attacking;
-        return;
-      }
-
-      mySocket.player.attacking = false;
+    // Handle player disconnect
+    mySocket.on("disconnect", () => {
+      mySocket.player.destroy(engine.engine.world);
     });
   });
 }
 
 function handleEngineTick(io: Server) {
-  const namespace = io.of("/");
+  const sockets = getSockets(io);
 
-  const sockets = Object.values(
-    Object.fromEntries(namespace.sockets.entries())
-  ) as Array<IExtendedSocket>;
-
+  // Update all player entities
   sockets.forEach((socket) => {
     socket.player.update();
   });
 
-  const clientData = sockets.map((socket) => socket.player.getClientData());
-
+  // Emit player data to all clients
   sockets.forEach((socket) => {
-    socket.emit("update", clientData);
+    socket.emit("update", socket.player.getPublicState());
   });
 }

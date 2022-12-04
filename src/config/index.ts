@@ -1,5 +1,4 @@
-export { CorsConfig } from "./Cors";
-export { GamePhysicsConfig } from "./Physics";
-export { ServerConfig } from "./Server";
-export { GameMap } from "./Map";
-export { Spawners } from "./Spawners";
+export * from "./cors.config";
+export * from "./physics.config";
+export * from "./core.config";
+export * from "./map.config";

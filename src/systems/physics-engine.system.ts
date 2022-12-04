@@ -1,6 +1,6 @@
 import Matter from "matter-js";
 import { IPosition } from "types";
-import { GamePhysicsConfig, ServerConfig } from "./config";
+import { GamePhysicsConfig, CoreConfig } from "../config";
 
 type PhysicsEngineUpdateCallback = () => void;
 
@@ -30,7 +30,7 @@ export class PhysicsEngine {
   }
 
   update(callback: PhysicsEngineUpdateCallback) {
-    setInterval(callback, ServerConfig.tickRate);
+    setInterval(callback, CoreConfig.tickRate);
     return this;
   }
 
