@@ -33,7 +33,9 @@ export class Ticker {
           }
         }
 
-        socket.emit("stats", player.getPrivateState());
+        socket.emit("tick", {
+          stats: player.getPrivateState()
+        });
       });
     }, time);
   }
