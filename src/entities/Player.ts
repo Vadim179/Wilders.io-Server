@@ -27,6 +27,7 @@ export class Player {
     this.id = id;
     this.username = username;
     this.body = body;
+    this.body.label = "player";
   }
 
   // This method is called when the player is created
@@ -70,6 +71,34 @@ export class Player {
   // Fills one of the player's stats, maximum value is 100
   public fillStat(stat: PlayerStat, amount: number) {
     this[stat] = Math.min(100, this[stat] + amount);
+
+    return this;
+  }
+
+  public attack(world: Matter.World) {
+    const playerPosition = this.body.position;
+    const playerRotation = this.body.angle - (90 * Math.PI) / 180;
+
+    const attackBodyDistance = 40;
+    const attackBodyRadius = 40;
+
+    const attackPosition = {
+      x: playerPosition.x + Math.cos(playerRotation) * attackBodyDistance,
+      y: playerPosition.y + Math.sin(playerRotation) * attackBodyDistance
+    };
+
+    const attackBody = Matter.Bodies.circle(
+      attackPosition.x,
+      attackPosition.y,
+      attackBodyRadius,
+      { isSensor: true }
+    );
+
+    Matter.World.add(world, attackBody);
+
+    setTimeout(() => {
+      Matter.World.remove(world, attackBody);
+    }, 1000);
 
     return this;
   }
