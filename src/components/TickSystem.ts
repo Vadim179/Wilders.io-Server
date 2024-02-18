@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import { getSockets } from "../utils";
 
-export class Ticker {
+export class Tick {
   constructor(private readonly io: Server) {}
 
   public start(): void {
