@@ -5,16 +5,20 @@ import { GameMap } from "./config";
 import { PhysicsEngine, Tick } from "./components";
 import { getRandomSpawnPosition, getSockets } from "./utils";
 import { Player } from "./entities";
+import { categories } from "./utils/categories";
 
 export function initializeGame(io: Server) {
   // Create physics engine
   const engine = new PhysicsEngine().load(
-    ...GameMap.entities.map(({ type, x, y }) => {
+    ...GameMap.entities.map(({ radius, x, y }) => {
       // TODO: Create radius config
-      const body = Matter.Bodies.circle(x, y, 60, { isStatic: true });
-      body.label = type;
+      const body = Matter.Bodies.circle(x, y, radius, {
+        isStatic: true,
+        collisionFilter: { category: categories.resource },
+      });
+      body.label = "resource";
       return body;
-    })
+    }),
   );
 
   // Start the physics engine
@@ -33,7 +37,7 @@ export function initializeGame(io: Server) {
     mySocket.player = new Player({
       id: mySocket.id,
       username: mySocket.handshake.query.username as string,
-      body: engine.loadPlayer(spawnPosition)
+      body: engine.loadPlayer(spawnPosition),
     }).start();
 
     mySocket.emit("spawn", spawnPosition);
@@ -49,8 +53,21 @@ export function initializeGame(io: Server) {
     });
 
     mySocket.on("attack", () => {
-      // TODO: Make the engine world global
-      mySocket.player.attack(engine.engine.world);
+      mySocket.player.attack(engine);
+    });
+
+    // * DEBUGGING
+    socket.on("requestPhysicsData", () => {
+      const bodiesData = Matter.Composite.allBodies(engine.engine.world).map(
+        (body) => ({
+          position: body.position,
+          angle: body.angle,
+          radius: body.circleRadius,
+          label: body.label,
+        }),
+      );
+
+      socket.emit("physicsData", bodiesData);
     });
 
     // Handle player disconnect

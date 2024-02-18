@@ -1,4 +1,5 @@
-import Matter from "matter-js";
+import { PhysicsEngine } from "components";
+import Matter, { Body } from "matter-js";
 
 interface IPlayerConstructorParams {
   id: string;
@@ -38,7 +39,6 @@ export class Player {
   // This method is called every tick
   public update() {
     this.move();
-
     return this;
   }
 
@@ -75,7 +75,7 @@ export class Player {
     return this;
   }
 
-  public attack(world: Matter.World) {
+  public attack(engine: PhysicsEngine) {
     const playerPosition = this.body.position;
     const playerRotation = this.body.angle - (90 * Math.PI) / 180;
 
@@ -84,23 +84,26 @@ export class Player {
 
     const attackPosition = {
       x: playerPosition.x + Math.cos(playerRotation) * attackBodyDistance,
-      y: playerPosition.y + Math.sin(playerRotation) * attackBodyDistance
+      y: playerPosition.y + Math.sin(playerRotation) * attackBodyDistance,
     };
 
-    const attackBody = Matter.Bodies.circle(
-      attackPosition.x,
-      attackPosition.y,
-      attackBodyRadius,
-      { isSensor: true }
-    );
+    const colliderBounds = {
+      min: {
+        x: attackPosition.x - attackBodyRadius,
+        y: attackPosition.y - attackBodyRadius,
+      },
+      max: {
+        x: attackPosition.x + attackBodyRadius,
+        y: attackPosition.y + attackBodyRadius,
+      },
+    };
 
-    Matter.World.add(world, attackBody);
-
-    setTimeout(() => {
-      Matter.World.remove(world, attackBody);
-    }, 1000);
-
-    return this;
+    for (const body of engine.engine.world.bodies) {
+      if (body === this.body) continue;
+      if (Matter.Bounds.overlaps(body.bounds, colliderBounds)) {
+        console.log("Player collider collided with:", body.label);
+      }
+    }
   }
 
   // Returns data that is only visible to the player
@@ -108,7 +111,7 @@ export class Player {
     return {
       health: this.health,
       temperature: this.temperature,
-      hunger: this.hunger
+      hunger: this.hunger,
     };
   }
 
@@ -119,7 +122,7 @@ export class Player {
       x: this.body.position.x,
       y: this.body.position.y,
       username: this.username,
-      rotation: this.rotation
+      rotation: this.rotation,
     };
   }
 }

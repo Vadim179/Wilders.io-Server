@@ -1,15 +1,15 @@
 import Matter from "matter-js";
 import { IPosition } from "types";
 import { GamePhysicsConfig, CoreConfig } from "../config";
+import { categories } from "../utils/categories";
 
 type PhysicsEngineUpdateCallback = () => void;
-
 export class PhysicsEngine {
   engine: Matter.Engine;
 
   constructor() {
     this.engine = Matter.Engine.create({
-      gravity: GamePhysicsConfig.gravity
+      gravity: GamePhysicsConfig.gravity,
     });
   }
 
@@ -20,9 +20,16 @@ export class PhysicsEngine {
 
   loadPlayer({ x, y }: IPosition) {
     // TODO: Create radius config
+    const playerCollisionGroup = Matter.Body.nextGroup(true);
     const body = Matter.Bodies.circle(x, y, 40, {
       frictionAir: GamePhysicsConfig.playerAirFriction,
-      friction: 0
+      friction: 0,
+
+      collisionFilter: {
+        group: playerCollisionGroup,
+        category: categories.player,
+        mask: categories.all & ~categories.player,
+      },
     });
 
     this.load(body);
