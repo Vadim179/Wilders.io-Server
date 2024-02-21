@@ -4,7 +4,11 @@ import { Socket } from "socket.io";
 import { physicsEngine } from "@/components/PhysicsEngine";
 import { getRandomSpawnPosition } from "@/helpers/getRandomSpawnPosition";
 
-type Stat = "health" | "temperature" | "hunger";
+enum Stat {
+  Hunger = "hunger",
+  Temperature = "temperature",
+  Health = "health",
+}
 
 export class Player {
   private dirX = 0;
@@ -25,6 +29,7 @@ export class Player {
 
     const spawnPosition = getRandomSpawnPosition();
     this.body = physicsEngine.loadPlayer(spawnPosition);
+    this.body.ownerClass = this;
 
     socket.player = this;
     socket.emit("spawn", spawnPosition);
@@ -37,22 +42,22 @@ export class Player {
    * @returns {this}
    */
   handleCycle() {
-    this.drainStat("hunger", 1.5);
-    this.drainStat("temperature", 2);
+    this.drainStat(Stat.Hunger, 1.5);
+    this.drainStat(Stat.Temperature, 2);
 
     // Add health in case the temperature and hunger are over 70%
     if ([this.temperature, this.hunger].every((stat) => stat >= 70)) {
-      this.fillStat("health", 10);
+      this.fillStat(Stat.Health, 10);
     }
 
     // Drain health in case temperature is 0%
     if (this.temperature === 0) {
-      this.drainStat("health", 10);
+      this.drainStat(Stat.Health, 10);
     }
 
     // Drain health in case hunger is 0%
     if (this.hunger === 0) {
-      this.drainStat("health", 20);
+      this.drainStat(Stat.Health, 20);
     }
 
     this.socket.emit("tick", { stats: this.getPrivateState() });

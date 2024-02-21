@@ -1,5 +1,5 @@
 export enum EntityCategories {
   All = 0xffff,
   Player = 0x0001,
-  Resource = 0x0002,
+  Collectable = 0x0002,
 }

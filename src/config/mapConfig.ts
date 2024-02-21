@@ -1,3 +1,7 @@
+import { Item } from "@/enums/itemEnum";
+import { EntitySize } from "@/enums/entitySizeEnum";
+import { CollectRank } from "@/enums/collectRankEnum";
+
 export const map = {
   spawners: [
     {
@@ -9,9 +13,50 @@ export const map = {
     width: 1000,
     height: 1000,
   },
-  resources: [
-    { id: 1, type: "LARGE_ROCK", radius: 60, x: 350, y: 50 },
-    { id: 2, type: "MEDIUM_DARK_OAK_TREE", radius: 60, x: 500, y: 250 },
-    { id: 3, type: "LARGE_OAK_TREE", radius: 60, x: 650, y: 150 },
+  collectables: [
+    {
+      id: 1,
+      item: Item.Stone,
+      size: EntitySize.Large,
+      radius: 60,
+      x: 350,
+      y: 50,
+    },
+    {
+      id: 2,
+      item: Item.Wood,
+      size: EntitySize.Medium,
+      radius: 60,
+      x: 500,
+      y: 250,
+    },
+    {
+      id: 3,
+      item: Item.Wood,
+      size: EntitySize.Large,
+      radius: 60,
+      x: 650,
+      y: 150,
+    },
   ],
+};
+
+export const collectableSizeToOptions = {
+  [EntitySize.Small]: {
+    storageAmount: 30,
+    regenerationAmount: 2,
+  },
+  [EntitySize.Medium]: {
+    storageAmount: 45,
+    regenerationAmount: 3,
+  },
+  [EntitySize.Large]: {
+    storageAmount: 60,
+    regenerationAmount: 4,
+  },
+};
+
+export const itemToCollectRank = {
+  [Item.Wood]: CollectRank.R1,
+  [Item.Stone]: CollectRank.R2,
 };

@@ -1,9 +1,14 @@
 import Matter from "matter-js";
-import { map } from "@/config/mapConfig";
+import {
+  itemToCollectRank,
+  collectableSizeToOptions,
+  map,
+} from "@/config/mapConfig";
 import { Position } from "@/types/mapTypes";
 
 import { EntityCategories } from "@/enums/entityCategoriesEnum";
 import { EntityTags } from "@/enums/entityTagsEnum";
+import { Collectable } from "@/entities/Collectable";
 
 /**
  * Used to enable physics in the game (collisions especially)
@@ -16,7 +21,7 @@ class PhysicsEngine {
       gravity: { x: 0, y: 0 },
     });
 
-    this.loadResources();
+    this.loadCollectables();
     this.run();
   }
 
@@ -51,21 +56,29 @@ class PhysicsEngine {
   }
 
   /**
-   * Load resources from the map config into the physics engine
+   * Load collectables from the map config into the physics engine
    *
    * @returns {this}
    */
-  loadResources() {
-    map.resources.forEach((resource) => {
-      const { radius, x, y } = resource;
+  loadCollectables() {
+    map.collectables.forEach((resource) => {
+      const { radius, x, y, size, item } = resource;
+      const { storageAmount, regenerationAmount } =
+        collectableSizeToOptions[size];
+      const collectRank = itemToCollectRank[item];
 
-      const body = Matter.Bodies.circle(x, y, radius, {
-        label: EntityTags.Resource,
-        isStatic: true,
-        collisionFilter: { category: EntityCategories.Resource },
-      });
+      const collectableOptions = {
+        x,
+        y,
+        radius,
+        item,
+        storageAmount,
+        regenerationAmount,
+        collectRank,
+      };
 
-      this.loadBody(body);
+      const collectable = new Collectable(collectableOptions);
+      this.loadBody(collectable.body);
     });
 
     return this;
