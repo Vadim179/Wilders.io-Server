@@ -1,9 +1,9 @@
 import Matter from "matter-js";
-import { map } from "../config/mapConfig";
-import { Position } from "../types/mapTypes";
+import { map } from "@/config/mapConfig";
+import { Position } from "@/types/mapTypes";
 
-import { EntityCategories } from "../enums/entityCategoriesEnum";
-import { EntityTags } from "../enums/entityTagsEnum";
+import { EntityCategories } from "@/enums/entityCategoriesEnum";
+import { EntityTags } from "@/enums/entityTagsEnum";
 
 /**
  * Used to enable physics in the game (collisions especially)
@@ -106,6 +106,7 @@ class PhysicsEngine {
   run() {
     const runner = Matter.Runner.create();
     Matter.Runner.run(runner, this.engine);
+    console.log("- Physics engine started.".cyan);
     return this;
   }
 }

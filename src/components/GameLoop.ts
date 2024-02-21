@@ -1,5 +1,5 @@
-import { getSockets } from "../helpers/getSockets";
 import { Server } from "socket.io";
+import { getSockets } from "@/helpers/getSockets";
 
 /**
  * This is the main class of the game. It allows the game to run.
@@ -37,6 +37,7 @@ export class GameLoop {
    */
   static startLoop(io: Server) {
     setInterval(() => this.handleIteration(io), this.iterationsPerSecond);
+    console.log("- Game loop started.".cyan);
     return this;
   }
 }

@@ -1,8 +1,8 @@
 import Matter from "matter-js";
 import { Socket } from "socket.io";
 
-import { physicsEngine } from "../components/PhysicsEngine";
-import { getRandomSpawnPosition } from "../helpers/getRandomSpawnPosition";
+import { physicsEngine } from "@/components/PhysicsEngine";
+import { getRandomSpawnPosition } from "@/helpers/getRandomSpawnPosition";
 
 type Stat = "health" | "temperature" | "hunger";
 
@@ -28,6 +28,7 @@ export class Player {
 
     socket.player = this;
     socket.emit("spawn", spawnPosition);
+    console.log(`- Player [${this.username.underline}] joined.`.yellow);
   }
 
   /**

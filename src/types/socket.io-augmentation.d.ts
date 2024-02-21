@@ -1,4 +1,4 @@
-import { Player } from "../entities/Player";
+import { Player } from "@/entities/Player";
 
 declare module "socket.io" {
   interface Socket {

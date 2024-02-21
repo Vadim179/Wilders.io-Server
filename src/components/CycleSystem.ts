@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { getSockets } from "../helpers/getSockets";
+import { getSockets } from "@/helpers/getSockets";
 
 /**
  * Used to handle in-game cycles like player stats, time-cycle, etc.
@@ -31,6 +31,7 @@ export class CycleSystem {
    */
   static startCycle(io: Server) {
     setInterval(() => this.handleCycleIteration(io), this.cycleDuration);
+    console.log("- Cycle system started.".cyan);
     return this;
   }
 }
