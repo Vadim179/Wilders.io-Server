@@ -2,7 +2,11 @@ import Matter from "matter-js";
 import { Socket } from "socket.io";
 
 import { physicsEngine } from "@/components/PhysicsEngine";
+import { Inventory } from "@/components/Inventory";
+
 import { getRandomSpawnPosition } from "@/helpers/getRandomSpawnPosition";
+import { Collectable } from "./Collectable";
+import { CollectRank } from "@/enums/collectRankEnum";
 
 enum Stat {
   Hunger = "hunger",
@@ -18,6 +22,8 @@ export class Player {
   private health = 100;
   private temperature = 100;
   private hunger = 100;
+  private collectRank = CollectRank.R1;
+  private inventory = new Inventory();
 
   id: string;
   username: string;
@@ -34,6 +40,10 @@ export class Player {
     socket.player = this;
     socket.emit("spawn", spawnPosition);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
+
+    this.inventory.on("update", (items) =>
+      socket.emit("inventory_update", items),
+    );
   }
 
   /**
@@ -178,7 +188,10 @@ export class Player {
       if (body === this.body) continue;
 
       if (Matter.Bounds.overlaps(body.bounds, colliderBounds)) {
-        console.log("Player collider collided with:", body.label);
+        if (body.ownerClass instanceof Collectable) {
+          const { item, amount } = body.ownerClass.collect(this.collectRank);
+          if (item !== null) this.inventory.addItem(item, amount);
+        }
       }
     }
   }

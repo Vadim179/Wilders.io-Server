@@ -14,6 +14,14 @@ interface CollectableOptions extends BodyOptions {
   collectRank: CollectRank;
 }
 
+interface CollectResult {
+  item: Item | null;
+  amount: number;
+}
+
+/**
+ * This class represents an entity that can be collected (e.g. Tree, Rock, etc.)
+ */
 export class Collectable {
   body: Matter.Body;
   item: Item;
@@ -47,5 +55,40 @@ export class Collectable {
     this.amount = storageAmount;
     this.regenerationAmount = regenerationAmount;
     this.collectRank = collectRank;
+  }
+
+  /**
+   * Collect items from this collectable entity
+   *
+   * @param playerCollectRank Player's collect rank
+   *
+   * @returns {CollectResult}
+   */
+  collect(playerCollectRank: CollectRank): CollectResult {
+    if (playerCollectRank < this.collectRank || this.amount === 0)
+      return { item: null, amount: 0 };
+
+    const collectedAmount = Math.min(
+      this.amount,
+      playerCollectRank - this.collectRank + 1,
+    );
+    this.amount -= collectedAmount;
+
+    return {
+      item: this.item,
+      amount: collectedAmount,
+    };
+  }
+
+  /**
+   * Regenerate this collectable entity
+   */
+  regenerate() {
+    if (this.amount === this.storageAmount) return;
+
+    this.amount = Math.min(
+      this.amount + this.regenerationAmount,
+      this.storageAmount,
+    );
   }
 }

@@ -1,5 +1,7 @@
 import { Server } from "socket.io";
 import { getSockets } from "@/helpers/getSockets";
+import { physicsEngine } from "./PhysicsEngine";
+import { Collectable } from "@/entities/Collectable";
 
 /**
  * Used to handle in-game cycles like player stats, time-cycle, etc.
@@ -20,6 +22,12 @@ export class CycleSystem {
     sockets.forEach((socket) => {
       socket.player.handleCycle();
     });
+
+    for (const body of physicsEngine.getBodies()) {
+      if (body.ownerClass instanceof Collectable) {
+        body.ownerClass.regenerate();
+      }
+    }
   }
 
   /**
