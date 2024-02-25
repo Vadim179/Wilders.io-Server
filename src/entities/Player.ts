@@ -38,7 +38,7 @@ export class Player {
     this.body.ownerClass = this;
 
     socket.player = this;
-    socket.emit("spawn", spawnPosition);
+    socket.emit("init", spawnPosition);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
 
     this.inventory.on("update", (items) =>
