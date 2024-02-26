@@ -23,11 +23,11 @@ export class Player {
   private temperature = 100;
   private hunger = 100;
   private collectRank = CollectRank.R1;
-  private inventory = new Inventory();
 
   id: string;
   username: string;
   body: Matter.Body;
+  inventory = new Inventory();
 
   constructor(private readonly socket: Socket) {
     this.id = socket.id;

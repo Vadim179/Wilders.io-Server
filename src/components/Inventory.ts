@@ -39,16 +39,16 @@ export class Inventory extends EventEmitter {
     return this.slots.map((slot) => [slot.item, slot.amount]);
   }
 
-  addItem(item: Item, amount: number) {
+  addItem(item: Item, amount: number, emit = true) {
     const slot = this.getSlotWithItem(item) || this.getEmptySlot();
 
     if (slot) {
       slot.add(item, amount);
-      this.emit("update", this.getItems());
+      if (emit) this.emit("update", this.getItems());
     }
   }
 
-  removeItem(item: Item, amount: number) {
+  removeItem(item: Item, amount: number, emit = true) {
     const slot = this.getSlotWithItem(item);
 
     if (slot) {
@@ -58,8 +58,12 @@ export class Inventory extends EventEmitter {
         this.shiftSlots(slot);
       }
 
-      this.emit("update", this.getItems());
+      if (emit) this.emit("update", this.getItems());
     }
+  }
+
+  emitUpdate() {
+    this.emit("update", this.getItems());
   }
 
   private shiftSlots(slot: Slot) {

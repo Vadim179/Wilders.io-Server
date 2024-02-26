@@ -5,6 +5,8 @@ import { Player } from "./entities/Player";
 import { physicsEngine } from "./components/PhysicsEngine";
 import { CycleSystem } from "./components/CycleSystem";
 import { GameLoop } from "./components/GameLoop";
+import { Item } from "./enums/itemEnum";
+import { Crafting } from "./components/Crafting";
 
 export function initializeGame(io: Server) {
   CycleSystem.startCycle(io), GameLoop.startLoop(io);
@@ -19,6 +21,10 @@ export function initializeGame(io: Server) {
 
     socket.on("rotate", (angle: number) => {
       player.setAngle(angle);
+    });
+
+    socket.on("craft", (item: Item) => {
+      Crafting.craft(player.inventory, item);
     });
 
     socket.on("attack", () => {
