@@ -15,11 +15,16 @@ export const craftingRecipes: readonly CraftingRecipe[] = [
   {
     item: Item.WoodPickaxe,
     quantity: 1,
-    ingredients: [{ item: Item.Wood, quantity: 10 }]
+    ingredients: [{ item: Item.Wood, quantity: 10 }],
   },
   {
     item: Item.WoodSword,
     quantity: 1,
-    ingredients: [{ item: Item.Wood, quantity: 25 }]
-  }
+    ingredients: [{ item: Item.Wood, quantity: 25 }],
+  },
+  {
+    item: Item.WoodHelmet,
+    quantity: 1,
+    ingredients: [{ item: Item.Wood, quantity: 5 }],
+  },
 ];

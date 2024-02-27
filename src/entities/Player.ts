@@ -7,6 +7,13 @@ import { Inventory } from "@/components/Inventory";
 import { getRandomSpawnPosition } from "@/helpers/getRandomSpawnPosition";
 import { Collectable } from "./Collectable";
 import { CollectRank } from "@/enums/collectRankEnum";
+import {
+  itemCategoryMap,
+  pickaxeCollectRankMap,
+  foodRestoreMap,
+} from "@/config/itemUseOptions";
+import { ItemCategory } from "@/enums/itemCategoryEnum";
+import { Item } from "@/enums/itemEnum";
 
 enum Stat {
   Hunger = "hunger",
@@ -22,7 +29,9 @@ export class Player {
   private health = 100;
   private temperature = 100;
   private hunger = 100;
-  private collectRank = CollectRank.R1;
+
+  helmet: Item | null = null;
+  weaponOrTool: Item | null = null;
 
   id: string;
   username: string;
@@ -44,6 +53,18 @@ export class Player {
     this.inventory.on("update", (items) =>
       socket.emit("inventory_update", items),
     );
+  }
+
+  get collectRank() {
+    const category = this.weaponOrTool
+      ? itemCategoryMap[this.weaponOrTool]
+      : null;
+
+    if (category === ItemCategory.Pickaxe && this.weaponOrTool) {
+      return pickaxeCollectRankMap[this.weaponOrTool];
+    }
+
+    return CollectRank.R1;
   }
 
   /**
@@ -85,6 +106,34 @@ export class Player {
   }
 
   /**
+   * Set the helmet
+   *
+   * @param item
+   *
+   * @returns {this}
+   */
+  setHelmet(item: Item) {
+    const helmet = this.helmet === item ? null : item;
+    this.helmet = helmet;
+    this.socket.emit("helmet_update", helmet);
+    return this;
+  }
+
+  /**
+   * Set weapon or tool
+   *
+   * @param item
+   *
+   * @returns {this}
+   */
+  setWeaponOrTool(item: Item) {
+    const weaponOrTool = this.weaponOrTool === item ? null : item;
+    this.weaponOrTool = weaponOrTool;
+    this.socket.emit("weapon_or_tool_update", weaponOrTool);
+    return this;
+  }
+
+  /**
    * Set angle of rotation
    *
    * @param angle New angle
@@ -95,6 +144,39 @@ export class Player {
     this.angle = angle;
     Matter.Body.setAngle(this.body, angle);
     return this;
+  }
+
+  useItem(slotIndex: number) {
+    const slots = this.inventory.getItems();
+    const slot = slots[slotIndex];
+
+    if (!slot || slot[0] === null) {
+      console.error("Slot is empty");
+      return;
+    }
+
+    const item = slot[0];
+    const category = itemCategoryMap[item];
+
+    switch (category) {
+      case ItemCategory.Helmet:
+        this.setHelmet(item);
+        break;
+      case ItemCategory.Weapon:
+        this.setWeaponOrTool(item);
+        break;
+      case ItemCategory.Pickaxe:
+        this.setWeaponOrTool(item);
+        break;
+      case ItemCategory.Food:
+        // TODO: Make the stats event-based
+        const restoreAmount = foodRestoreMap[item];
+        this.fillStat(Stat.Hunger, restoreAmount);
+        break;
+      default:
+        console.error("Item not usable");
+        return;
+    }
   }
 
   /**

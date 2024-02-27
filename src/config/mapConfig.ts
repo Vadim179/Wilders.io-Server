@@ -56,7 +56,7 @@ export const collectableSizeToOptions = {
   },
 };
 
-export const itemToCollectRank = {
+export const itemToCollectRank: Record<number, CollectRank> = {
   [Item.Wood]: CollectRank.R1,
   [Item.Stone]: CollectRank.R2,
 };

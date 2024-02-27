@@ -27,6 +27,10 @@ export function initializeGame(io: Server) {
       Crafting.craft(player.inventory, item);
     });
 
+    socket.on("inventory_use", (slotIndex: number) => {
+      player.useItem(slotIndex);
+    });
+
     socket.on("attack", () => {
       player.attack();
     });
