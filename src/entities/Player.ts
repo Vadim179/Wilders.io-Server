@@ -14,6 +14,7 @@ import {
 } from "@/config/itemUseOptions";
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
+import { EventEmitter } from "stream";
 
 enum Stat {
   Hunger = "hunger",
@@ -21,7 +22,7 @@ enum Stat {
   Health = "health",
 }
 
-export class Player {
+export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
   private angle = 0;
@@ -39,6 +40,7 @@ export class Player {
   inventory = new Inventory();
 
   constructor(private readonly socket: Socket) {
+    super();
     this.id = socket.id;
     this.username = socket.handshake.query.username as string;
 
@@ -53,6 +55,10 @@ export class Player {
     this.inventory.on("update", (items) =>
       socket.emit("inventory_update", items),
     );
+
+    this.on("stats_update", (stats) => {
+      socket.emit("stats_update", stats);
+    });
   }
 
   get collectRank() {
@@ -67,31 +73,39 @@ export class Player {
     return CollectRank.R1;
   }
 
+  get stats() {
+    return {
+      health: this.health,
+      temperature: this.temperature,
+      hunger: this.hunger,
+    };
+  }
+
   /**
    * Handle cycles. Cycles happen every 5 seconds.
    *
    * @returns {this}
    */
   handleCycle() {
-    this.drainStat(Stat.Hunger, 1.5);
-    this.drainStat(Stat.Temperature, 2);
+    this.drainStat(Stat.Hunger, 1.5, false);
+    this.drainStat(Stat.Temperature, 2, false);
 
     // Add health in case the temperature and hunger are over 70%
     if ([this.temperature, this.hunger].every((stat) => stat >= 70)) {
-      this.fillStat(Stat.Health, 10);
+      this.fillStat(Stat.Health, 10, false);
     }
 
     // Drain health in case temperature is 0%
     if (this.temperature === 0) {
-      this.drainStat(Stat.Health, 10);
+      this.drainStat(Stat.Health, 10, false);
     }
 
     // Drain health in case hunger is 0%
     if (this.hunger === 0) {
-      this.drainStat(Stat.Health, 20);
+      this.drainStat(Stat.Health, 20, false);
     }
 
-    this.socket.emit("tick", { stats: this.getPrivateState() });
+    this.emit("stats_update", this.stats);
     return this;
   }
 
@@ -169,7 +183,6 @@ export class Player {
         this.setWeaponOrTool(item);
         break;
       case ItemCategory.Food:
-        // TODO: Make the stats event-based
         const restoreAmount = foodRestoreMap[item];
         this.fillStat(Stat.Hunger, restoreAmount);
         break;
@@ -221,8 +234,9 @@ export class Player {
    *
    * @returns {this}
    */
-  drainStat(stat: Stat, value: number) {
+  drainStat(stat: Stat, value: number, emit = true) {
     this[stat] = Math.max(0, this[stat] - value);
+    if (emit) this.emit("stats_update", { [stat]: this[stat] });
     return this;
   }
 
@@ -234,8 +248,9 @@ export class Player {
    *
    * @returns {this}
    */
-  fillStat(stat: Stat, value: number) {
+  fillStat(stat: Stat, value: number, emit = true) {
     this[stat] = Math.min(100, this[stat] + value);
+    if (emit) this.emit("stats_update", { [stat]: this[stat] });
     return this;
   }
 
@@ -276,17 +291,6 @@ export class Player {
         }
       }
     }
-  }
-
-  /**
-   * Returns the state available only for the player himself
-   */
-  getPrivateState() {
-    return {
-      health: this.health,
-      temperature: this.temperature,
-      hunger: this.hunger,
-    };
   }
 
   /**
