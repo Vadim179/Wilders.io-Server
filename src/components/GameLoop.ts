@@ -5,7 +5,7 @@ import { getSockets } from "@/helpers/getSockets";
  * This is the main class of the game. It allows the game to run.
  */
 export class GameLoop {
-  private static iterationsPerSecond = 1000 / 10;
+  private static iterationsPerSecond = 1000 / 20;
   private static timerIterationsPerSecond = 1000 / 20;
   private static lastUpdate = Date.now();
 
