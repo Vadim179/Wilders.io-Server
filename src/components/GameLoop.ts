@@ -5,7 +5,8 @@ import { getSockets } from "@/helpers/getSockets";
  * This is the main class of the game. It allows the game to run.
  */
 export class GameLoop {
-  private static iterationsPerSecond = 1000 / 60;
+  private static iterationsPerSecond = 1000 / 20;
+  private static lastUpdate = Date.now();
 
   /**
    * This function is called on every game iteration (iterationsPerSecond)
@@ -36,7 +37,11 @@ export class GameLoop {
    * @returns {this}
    */
   static startLoop(io: Server) {
-    setInterval(() => this.handleIteration(io), this.iterationsPerSecond);
+    setInterval(() => {
+      if (Date.now() - this.lastUpdate < 10) return;
+      this.lastUpdate = Date.now();
+      this.handleIteration(io);
+    }, this.iterationsPerSecond);
     console.log("- Game loop started.".cyan);
     return this;
   }

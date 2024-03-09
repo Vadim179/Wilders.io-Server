@@ -212,7 +212,7 @@ export class Player extends EventEmitter {
    */
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = 8;
+    const speed = 10;
 
     let x = dirX * speed;
     let y = dirY * speed;
