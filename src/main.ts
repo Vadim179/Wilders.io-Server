@@ -1,24 +1,38 @@
+import "reflect-metadata";
+import "tsconfig-paths/register";
 import "colors";
 
 import dotenv from "dotenv";
+
+const isProduction = process.env.NODE_ENV === "production";
+
+dotenv.config({
+  path: isProduction ? ".env.production" : ".env.development",
+});
+
 import express from "express";
-import morgan from "morgan";
 import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
 
-import { Server as HTTPServer } from "http";
-import { Server as WSServer } from "socket.io";
+import http from "http";
+import io from "socket.io";
+
 import { initializeGame } from "./game";
-import { CorsConfig } from "./config";
+import { corsConfig } from "./config/corsConfig";
 
-dotenv.config();
 const app = express();
-app.use(morgan("common"));
-app.use(cors(CorsConfig));
 
-const server = new HTTPServer(app);
-initializeGame(new WSServer(server, { cors: CorsConfig }));
+app.use(cors());
+app.use(helmet());
+app.use(morgan(isProduction ? "combined" : "dev"));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => {
-  console.log("Server running on: http://localhost:8000");
+const server = http.createServer(app);
+initializeGame(new io.Server(server, { cors: corsConfig }));
+
+const port = process.env.PORT || 8000;
+server.listen(port, () => {
+  console.log("Server running on: http://localhost:8000".green);
 });
