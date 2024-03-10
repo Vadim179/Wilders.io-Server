@@ -286,6 +286,22 @@ export class Player extends EventEmitter {
 
       if (Matter.Bounds.overlaps(body.bounds, colliderBounds)) {
         if (body.ownerClass instanceof Collectable) {
+          const bodyAttackDirection = {
+            x: body.position.x - attackPosition.x,
+            y: body.position.y - attackPosition.y,
+          };
+
+          const bodyAttackAngle = Math.atan2(
+            bodyAttackDirection.y,
+            bodyAttackDirection.x,
+          );
+
+          // TODO: Send to nearby players only
+          this.socket.emit("attack_collectable", [
+            body.ownerClass.id,
+            bodyAttackAngle,
+          ]);
+
           const { item, amount } = body.ownerClass.collect(this.collectRank);
           if (item !== null) this.inventory.addItem(item, amount);
         }

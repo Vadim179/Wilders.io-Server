@@ -62,12 +62,13 @@ class PhysicsEngine {
    */
   loadCollectables() {
     map.collectables.forEach((resource) => {
-      const { radius, x, y, size, item } = resource;
+      const { id, radius, x, y, size, item } = resource;
       const { storageAmount, regenerationAmount } =
         collectableSizeToOptions[size];
       const collectRank = itemToCollectRank[item];
 
       const collectableOptions = {
+        id,
         x,
         y,
         radius,

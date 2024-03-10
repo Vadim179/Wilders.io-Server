@@ -8,6 +8,7 @@ import { EntityTags } from "@/enums/entityTagsEnum";
 import { EntityCategories } from "@/enums/entityCategoriesEnum";
 
 interface CollectableOptions extends BodyOptions {
+  id: string;
   item: Item;
   storageAmount: number;
   regenerationAmount: number;
@@ -23,6 +24,7 @@ interface CollectResult {
  * This class represents an entity that can be collected (e.g. Tree, Rock, etc.)
  */
 export class Collectable {
+  id: string;
   body: Matter.Body;
   item: Item;
   storageAmount: number;
@@ -32,6 +34,7 @@ export class Collectable {
 
   constructor(options: CollectableOptions) {
     const {
+      id,
       x,
       y,
       radius,
@@ -47,6 +50,7 @@ export class Collectable {
       collisionFilter: { category: EntityCategories.Collectable },
     };
 
+    this.id = id;
     this.body = Matter.Bodies.circle(x, y, radius, bodyOptions);
     this.body.ownerClass = this;
 
