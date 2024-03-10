@@ -15,7 +15,7 @@ export const map = {
   },
   collectables: [
     {
-      id: 1,
+      id: "stone-1",
       item: Item.Stone,
       size: EntitySize.Large,
       radius: 60,
@@ -23,7 +23,7 @@ export const map = {
       y: 50,
     },
     {
-      id: 2,
+      id: "tree-1",
       item: Item.Wood,
       size: EntitySize.Medium,
       radius: 60,
@@ -31,7 +31,7 @@ export const map = {
       y: 250,
     },
     {
-      id: 3,
+      id: "tree-2",
       item: Item.Wood,
       size: EntitySize.Large,
       radius: 60,
