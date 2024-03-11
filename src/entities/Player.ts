@@ -52,9 +52,17 @@ export class Player extends EventEmitter {
     socket.emit("init", spawnPosition);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
 
-    this.inventory.on("update", (items) =>
-      socket.emit("inventory_update", items),
-    );
+    this.inventory.on("update", (items: Item[][]) => {
+      const hasHelmet = items.some(([item]) => item === this.helmet);
+      const hasWeaponOrTool = items.some(
+        ([item]) => item === this.weaponOrTool,
+      );
+
+      if (!hasHelmet) this.setHelmet(null);
+      if (!hasWeaponOrTool) this.setWeaponOrTool(null);
+
+      socket.emit("inventory_update", items);
+    });
 
     this.on("stats_update", (stats) => {
       socket.emit("stats_update", stats);
@@ -126,7 +134,7 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  setHelmet(item: Item) {
+  setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
     this.socket.emit("helmet_update", helmet);
@@ -140,7 +148,7 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  setWeaponOrTool(item: Item) {
+  setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
     this.socket.emit("weapon_or_tool_update", weaponOrTool);
@@ -297,6 +305,7 @@ export class Player extends EventEmitter {
           );
 
           // TODO: Send to nearby players only
+          // TODO: Send all collectables to the client together
           this.socket.emit("attack_collectable", [
             body.ownerClass.id,
             bodyAttackAngle,
