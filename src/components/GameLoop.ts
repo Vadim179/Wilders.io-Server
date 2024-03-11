@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import { getSockets } from "@/helpers/getSockets";
+import { SocketEvent } from "@/enums/socketEvent";
 
 /**
  * This is the main class of the game. It allows the game to run.
@@ -26,7 +27,7 @@ export class GameLoop {
 
     // Emit player data to all clients
     sockets.forEach((socket) => {
-      socket.emit("update", socket.player.getPublicState());
+      socket.emit(SocketEvent.MovementUpdate, socket.player.getPublicState());
     });
   }
 

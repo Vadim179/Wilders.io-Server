@@ -15,6 +15,7 @@ import {
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
 import { EventEmitter } from "stream";
+import { SocketEvent } from "@/enums/socketEvent";
 
 enum Stat {
   Hunger = "hunger",
@@ -39,6 +40,8 @@ export class Player extends EventEmitter {
   body: Matter.Body;
   inventory = new Inventory();
 
+  isAttacking = false;
+
   constructor(private readonly socket: Socket) {
     super();
     this.id = socket.id;
@@ -49,7 +52,7 @@ export class Player extends EventEmitter {
     this.body.ownerClass = this;
 
     socket.player = this;
-    socket.emit("init", spawnPosition);
+    socket.emit(SocketEvent.Init, spawnPosition);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
 
     this.inventory.on("update", (items: Item[][]) => {
@@ -61,11 +64,11 @@ export class Player extends EventEmitter {
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
-      socket.emit("inventory_update", items);
+      socket.emit(SocketEvent.InventoryUpdate, items);
     });
 
     this.on("stats_update", (stats) => {
-      socket.emit("stats_update", stats);
+      socket.emit(SocketEvent.StatsUpdate, stats);
     });
   }
 
@@ -137,7 +140,7 @@ export class Player extends EventEmitter {
   setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
-    this.socket.emit("helmet_update", helmet);
+    this.socket.emit(SocketEvent.HelmetUpdate, helmet);
     return this;
   }
 
@@ -151,7 +154,7 @@ export class Player extends EventEmitter {
   setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
-    this.socket.emit("weapon_or_tool_update", weaponOrTool);
+    this.socket.emit(SocketEvent.WeaponOrToolUpdate, weaponOrTool);
     return this;
   }
 
@@ -203,13 +206,13 @@ export class Player extends EventEmitter {
   /**
    * Set movement direction
    *
-   * @param direction
+   * @param direction 0 for X, 1 for Y
    * @param value
    *
    * @returns {this}
    */
-  setDirection(direction: "x" | "y", value: number) {
-    if (direction === "x") return (this.dirX = value), this;
+  setDirection(direction: number, value: number) {
+    if (direction === 0) return (this.dirX = value), this;
     return (this.dirY = value), this;
   }
 
@@ -306,7 +309,7 @@ export class Player extends EventEmitter {
 
           // TODO: Send to nearby players only
           // TODO: Send all collectables to the client together
-          this.socket.emit("attack_collectable", [
+          this.socket.emit(SocketEvent.AnimateCollectable, [
             body.ownerClass.id,
             bodyAttackAngle,
           ]);
@@ -316,18 +319,23 @@ export class Player extends EventEmitter {
         }
       }
     }
+
+    this.socket.emit(SocketEvent.Attack);
+    return this;
   }
 
   /**
-   * Returns the state available for all players
+   * Returns the state available for all players in binary format
    */
   getPublicState() {
-    return {
-      id: this.id,
-      x: this.body.position.x,
-      y: this.body.position.y,
-      username: this.username,
-      angle: this.angle,
-    };
+    const xBuffer = Buffer.alloc(8);
+    const yBuffer = Buffer.alloc(8);
+    const angleBuffer = Buffer.alloc(8);
+
+    xBuffer.writeDoubleLE(this.body.position.x);
+    yBuffer.writeDoubleLE(this.body.position.y);
+    angleBuffer.writeDoubleLE(this.angle);
+
+    return Buffer.concat([xBuffer, yBuffer, angleBuffer]);
   }
 }
