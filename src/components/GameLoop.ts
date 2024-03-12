@@ -15,13 +15,9 @@ export class GameLoop {
    *
    * @returns {void}
    */
-  private static handleIteration(io: Server) {
+  private static handleTick(io: Server) {
     const sockets = getSockets(io);
-
-    // Update all player entities
-    sockets.forEach((socket) => {
-      socket.player.calculatePosition();
-    });
+    sockets.forEach((socket) => socket.player.handleTick());
   }
 
   /**
@@ -38,7 +34,7 @@ export class GameLoop {
 
       if (elapsed > this.iterationsPerSecond) {
         this.lastUpdate = now - (elapsed % this.iterationsPerSecond);
-        this.handleIteration(io);
+        this.handleTick(io);
       }
     }, this.iterationsPerSecond);
     console.log("- Game loop started.".cyan);

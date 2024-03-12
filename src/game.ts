@@ -13,7 +13,7 @@ export function initializeGame(io: Server) {
   CycleSystem.startCycle(io), GameLoop.startLoop(io);
 
   io.on("connection", (socket) => {
-    const player = new Player(socket);
+    const player = new Player(socket, io);
 
     // Handle player actions
     socket.on(SocketEvent.Move, ([direction, value]: number[]) => {
