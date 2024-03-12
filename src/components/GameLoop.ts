@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import { getSockets } from "@/helpers/getSockets";
-import { SocketEvent } from "@/enums/socketEvent";
 
 /**
  * This is the main class of the game. It allows the game to run.

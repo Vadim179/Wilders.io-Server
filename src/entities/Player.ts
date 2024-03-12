@@ -18,9 +18,9 @@ import { EventEmitter } from "stream";
 import { SocketEvent } from "@/enums/socketEvent";
 
 enum Stat {
-  Hunger = "hunger",
-  Temperature = "temperature",
-  Health = "health",
+  Hunger,
+  Temperature,
+  Health,
 }
 
 export class Player extends EventEmitter {
@@ -28,9 +28,11 @@ export class Player extends EventEmitter {
   private dirY = 0;
   private angle = 0;
 
-  private health = 100;
-  private temperature = 100;
-  private hunger = 100;
+  private stats = {
+    [Stat.Hunger]: 100,
+    [Stat.Temperature]: 100,
+    [Stat.Health]: 100,
+  };
 
   helmet: Item | null = null;
   weaponOrTool: Item | null = null;
@@ -77,6 +79,18 @@ export class Player extends EventEmitter {
     });
   }
 
+  get health() {
+    return this.stats[Stat.Health];
+  }
+
+  get temperature() {
+    return this.stats[Stat.Temperature];
+  }
+
+  get hunger() {
+    return this.stats[Stat.Hunger];
+  }
+
   get collectRank() {
     const category = this.weaponOrTool
       ? itemCategoryMap[this.weaponOrTool]
@@ -87,14 +101,6 @@ export class Player extends EventEmitter {
     }
 
     return CollectRank.R1;
-  }
-
-  get stats() {
-    return {
-      health: this.health,
-      temperature: this.temperature,
-      hunger: this.hunger,
-    };
   }
 
   /**
@@ -271,8 +277,8 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   drainStat(stat: Stat, value: number, emit = true) {
-    this[stat] = Math.max(0, this[stat] - value);
-    if (emit) this.emit("stats_update", { [stat]: this[stat] });
+    this.stats[stat] = Math.max(0, this.stats[stat] - value);
+    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
@@ -285,8 +291,8 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   fillStat(stat: Stat, value: number, emit = true) {
-    this[stat] = Math.min(100, this[stat] + value);
-    if (emit) this.emit("stats_update", { [stat]: this[stat] });
+    this.stats[stat] = Math.min(100, this.stats[stat] + value);
+    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
