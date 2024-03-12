@@ -6,8 +6,7 @@ import { SocketEvent } from "@/enums/socketEvent";
  * This is the main class of the game. It allows the game to run.
  */
 export class GameLoop {
-  private static iterationsPerSecond = 1000 / 20;
-  private static timerIterationsPerSecond = 1000 / 20;
+  private static iterationsPerSecond = 1000 / 15;
   private static lastUpdate = Date.now();
 
   /**
@@ -23,11 +22,6 @@ export class GameLoop {
     // Update all player entities
     sockets.forEach((socket) => {
       socket.player.calculatePosition();
-    });
-
-    // Emit player data to all clients
-    sockets.forEach((socket) => {
-      socket.emit(SocketEvent.MovementUpdate, socket.player.getPublicState());
     });
   }
 
@@ -47,7 +41,7 @@ export class GameLoop {
         this.lastUpdate = now - (elapsed % this.iterationsPerSecond);
         this.handleIteration(io);
       }
-    }, this.timerIterationsPerSecond);
+    }, this.iterationsPerSecond);
     console.log("- Game loop started.".cyan);
     return this;
   }

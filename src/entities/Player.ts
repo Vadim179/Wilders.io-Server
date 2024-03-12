@@ -41,6 +41,8 @@ export class Player extends EventEmitter {
   inventory = new Inventory();
 
   isAttacking = false;
+  previousX = 0;
+  previousY = 0;
 
   constructor(private readonly socket: Socket) {
     super();
@@ -48,6 +50,9 @@ export class Player extends EventEmitter {
     this.username = socket.handshake.query.username as string;
 
     const spawnPosition = getRandomSpawnPosition();
+    this.previousX = spawnPosition.x;
+    this.previousY = spawnPosition.y;
+
     this.body = physicsEngine.loadPlayer(spawnPosition);
     this.body.ownerClass = this;
 
@@ -223,7 +228,7 @@ export class Player extends EventEmitter {
    */
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = 12;
+    const speed = 14;
 
     let x = dirX * speed;
     let y = dirY * speed;
@@ -234,6 +239,26 @@ export class Player extends EventEmitter {
     }
 
     Matter.Body.setVelocity(body, { x, y });
+
+    if (
+      body.position.x === this.previousX &&
+      body.position.y === this.previousY
+    ) {
+      return this;
+    }
+
+    const xBuffer = Buffer.alloc(8);
+    const yBuffer = Buffer.alloc(8);
+
+    xBuffer.writeDoubleLE(this.body.position.x);
+    yBuffer.writeDoubleLE(this.body.position.y);
+
+    const arrayBuffer = Buffer.concat([xBuffer, yBuffer]);
+    this.socket.emit(SocketEvent.MovementUpdate, arrayBuffer);
+
+    this.previousX = this.body.position.x;
+    this.previousY = this.body.position.y;
+
     return this;
   }
 
@@ -322,20 +347,5 @@ export class Player extends EventEmitter {
 
     this.socket.emit(SocketEvent.Attack);
     return this;
-  }
-
-  /**
-   * Returns the state available for all players in binary format
-   */
-  getPublicState() {
-    const xBuffer = Buffer.alloc(8);
-    const yBuffer = Buffer.alloc(8);
-    const angleBuffer = Buffer.alloc(8);
-
-    xBuffer.writeDoubleLE(this.body.position.x);
-    yBuffer.writeDoubleLE(this.body.position.y);
-    angleBuffer.writeDoubleLE(this.angle);
-
-    return Buffer.concat([xBuffer, yBuffer, angleBuffer]);
   }
 }
