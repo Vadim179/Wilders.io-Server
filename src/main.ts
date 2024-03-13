@@ -30,7 +30,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 const server = http.createServer(app);
-initializeGame(new io.Server(server, { cors: corsConfig }));
+initializeGame(
+  new io.Server(server, {
+    cors: corsConfig,
+  }),
+);
 
 const port = process.env.PORT || 8000;
 server.listen(port, () => {

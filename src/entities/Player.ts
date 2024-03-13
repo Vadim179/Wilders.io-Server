@@ -1,5 +1,5 @@
 import Matter from "matter-js";
-import { Socket } from "socket.io";
+import { Server, Socket } from "socket.io";
 
 import { physicsEngine } from "@/components/PhysicsEngine";
 import { Inventory } from "@/components/Inventory";
@@ -15,11 +15,14 @@ import {
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
 import { EventEmitter } from "stream";
+import { SocketEvent } from "@/enums/socketEvent";
+import { getSockets } from "@/helpers/getSockets";
+import { isPlayerNearby } from "@/helpers/isPlayerNearby";
 
 enum Stat {
-  Hunger = "hunger",
-  Temperature = "temperature",
-  Health = "health",
+  Hunger,
+  Temperature,
+  Health,
 }
 
 export class Player extends EventEmitter {
@@ -27,9 +30,11 @@ export class Player extends EventEmitter {
   private dirY = 0;
   private angle = 0;
 
-  private health = 100;
-  private temperature = 100;
-  private hunger = 100;
+  private stats = {
+    [Stat.Hunger]: 100,
+    [Stat.Temperature]: 100,
+    [Stat.Health]: 100,
+  };
 
   helmet: Item | null = null;
   weaponOrTool: Item | null = null;
@@ -38,27 +43,57 @@ export class Player extends EventEmitter {
   username: string;
   body: Matter.Body;
   inventory = new Inventory();
+  nearbyPlayers: Player[] = [];
 
-  constructor(private readonly socket: Socket) {
+  isAttacking = false;
+  previousX = 0;
+  previousY = 0;
+
+  constructor(private readonly socket: Socket, private readonly io: Server) {
     super();
     this.id = socket.id;
     this.username = socket.handshake.query.username as string;
 
     const spawnPosition = getRandomSpawnPosition();
+    this.previousX = spawnPosition.x;
+    this.previousY = spawnPosition.y;
+
     this.body = physicsEngine.loadPlayer(spawnPosition);
     this.body.ownerClass = this;
 
     socket.player = this;
-    socket.emit("init", spawnPosition);
+    socket.emit(SocketEvent.Init, spawnPosition);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
 
-    this.inventory.on("update", (items) =>
-      socket.emit("inventory_update", items),
-    );
+    this.inventory.on("update", (items: Item[][]) => {
+      const hasHelmet = items.some(([item]) => item === this.helmet);
+      const hasWeaponOrTool = items.some(
+        ([item]) => item === this.weaponOrTool,
+      );
+
+      if (!hasHelmet) this.setHelmet(null);
+      if (!hasWeaponOrTool) this.setWeaponOrTool(null);
+
+      socket.emit(SocketEvent.InventoryUpdate, items);
+    });
 
     this.on("stats_update", (stats) => {
-      socket.emit("stats_update", stats);
+      socket.emit(SocketEvent.StatsUpdate, stats);
     });
+
+    this.calculateNearbyPlayers();
+  }
+
+  get health() {
+    return this.stats[Stat.Health];
+  }
+
+  get temperature() {
+    return this.stats[Stat.Temperature];
+  }
+
+  get hunger() {
+    return this.stats[Stat.Hunger];
   }
 
   get collectRank() {
@@ -71,14 +106,6 @@ export class Player extends EventEmitter {
     }
 
     return CollectRank.R1;
-  }
-
-  get stats() {
-    return {
-      health: this.health,
-      temperature: this.temperature,
-      hunger: this.hunger,
-    };
   }
 
   /**
@@ -116,6 +143,7 @@ export class Player extends EventEmitter {
    */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
+    this.broadcastWithId(SocketEvent.PlayerRemove);
     return this;
   }
 
@@ -126,10 +154,14 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  setHelmet(item: Item) {
+  setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
-    this.socket.emit("helmet_update", helmet);
+    this.socketEmitAndBroadcastWithId(
+      SocketEvent.HelmetUpdate,
+      SocketEvent.HelmetUpdateOther,
+      helmet,
+    );
     return this;
   }
 
@@ -140,10 +172,14 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  setWeaponOrTool(item: Item) {
+  setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
-    this.socket.emit("weapon_or_tool_update", weaponOrTool);
+    this.socketEmitAndBroadcastWithId(
+      SocketEvent.WeaponOrToolUpdate,
+      SocketEvent.WeaponOrToolUpdateOther,
+      weaponOrTool,
+    );
     return this;
   }
 
@@ -157,6 +193,7 @@ export class Player extends EventEmitter {
   setAngle(angle: number) {
     this.angle = angle;
     Matter.Body.setAngle(this.body, angle);
+    this.broadcastWithId(SocketEvent.RotateOther, angle);
     return this;
   }
 
@@ -195,13 +232,13 @@ export class Player extends EventEmitter {
   /**
    * Set movement direction
    *
-   * @param direction
+   * @param direction 0 for X, 1 for Y
    * @param value
    *
    * @returns {this}
    */
-  setDirection(direction: "x" | "y", value: number) {
-    if (direction === "x") return (this.dirX = value), this;
+  setDirection(direction: number, value: number) {
+    if (direction === 0) return (this.dirX = value), this;
     return (this.dirY = value), this;
   }
 
@@ -212,7 +249,7 @@ export class Player extends EventEmitter {
    */
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = 12;
+    const speed = 14;
 
     let x = dirX * speed;
     let y = dirY * speed;
@@ -223,6 +260,71 @@ export class Player extends EventEmitter {
     }
 
     Matter.Body.setVelocity(body, { x, y });
+
+    if (
+      body.position.x === this.previousX &&
+      body.position.y === this.previousY
+    ) {
+      return this;
+    }
+
+    const xBuffer = Buffer.alloc(8);
+    const yBuffer = Buffer.alloc(8);
+
+    xBuffer.writeDoubleLE(this.body.position.x);
+    yBuffer.writeDoubleLE(this.body.position.y);
+
+    const arrayBuffer = Buffer.concat([xBuffer, yBuffer]);
+    this.socketEmitAndBroadcastWithId(
+      SocketEvent.MovementUpdate,
+      SocketEvent.MovementUpdateOther,
+      arrayBuffer,
+    );
+
+    this.previousX = this.body.position.x;
+    this.previousY = this.body.position.y;
+
+    return this;
+  }
+
+  calculateNearbyPlayers() {
+    const otherPlayers = getSockets(this.io);
+
+    const currentNearbyPlayers = otherPlayers
+      .filter(
+        (socket) =>
+          socket.player.id !== this.id && isPlayerNearby(this, socket.player),
+      )
+      .map((socket) => socket.player);
+
+    const newNearbyPlayers = currentNearbyPlayers.filter(
+      (player) => !this.nearbyPlayers.includes(player),
+    );
+
+    const removedNearbyPlayers = this.nearbyPlayers.filter(
+      (player) => !currentNearbyPlayers.includes(player),
+    );
+
+    newNearbyPlayers.forEach((player) => {
+      this.socket.emit(SocketEvent.PlayerInitialization, [
+        player.id,
+        player.username,
+        player.body.position.x,
+        player.body.position.y,
+        player.angle,
+      ]);
+    });
+
+    removedNearbyPlayers.forEach((player) => {
+      this.socket.emit(SocketEvent.PlayerRemove, player.id);
+    });
+
+    this.nearbyPlayers = currentNearbyPlayers;
+  }
+
+  handleTick() {
+    this.calculatePosition();
+    this.calculateNearbyPlayers();
     return this;
   }
 
@@ -235,8 +337,8 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   drainStat(stat: Stat, value: number, emit = true) {
-    this[stat] = Math.max(0, this[stat] - value);
-    if (emit) this.emit("stats_update", { [stat]: this[stat] });
+    this.stats[stat] = Math.max(0, this.stats[stat] - value);
+    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
@@ -249,8 +351,8 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   fillStat(stat: Stat, value: number, emit = true) {
-    this[stat] = Math.min(100, this[stat] + value);
-    if (emit) this.emit("stats_update", { [stat]: this[stat] });
+    this.stats[stat] = Math.min(100, this.stats[stat] + value);
+    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
@@ -296,29 +398,56 @@ export class Player extends EventEmitter {
             bodyAttackDirection.x,
           );
 
-          // TODO: Send to nearby players only
-          this.socket.emit("attack_collectable", [
-            body.ownerClass.id,
-            bodyAttackAngle,
-          ]);
+          // TODO: Send all collectables to the client together
+          this.socketEmitAndBroadcast(
+            SocketEvent.AnimateCollectable,
+            SocketEvent.AnimateCollectable,
+            [body.ownerClass.id, bodyAttackAngle],
+          );
 
           const { item, amount } = body.ownerClass.collect(this.collectRank);
           if (item !== null) this.inventory.addItem(item, amount);
+        } else if (body.ownerClass instanceof Player) {
+          // TODO: Add weapon damage
+          body.ownerClass.drainStat(Stat.Health, 10);
         }
       }
     }
+
+    this.socketEmitAndBroadcastWithId(
+      SocketEvent.Attack,
+      SocketEvent.AttackOther,
+    );
+    return this;
   }
 
-  /**
-   * Returns the state available for all players
-   */
-  getPublicState() {
-    return {
-      id: this.id,
-      x: this.body.position.x,
-      y: this.body.position.y,
-      username: this.username,
-      angle: this.angle,
-    };
+  socketEmitAndBroadcastWithId(
+    event: SocketEvent,
+    otherEvent: SocketEvent,
+    ...args: any[]
+  ) {
+    this.socket.emit(event, ...args);
+    this.broadcastWithId(otherEvent, ...args);
+  }
+
+  socketEmitAndBroadcast(
+    event: SocketEvent,
+    otherEvent: SocketEvent,
+    ...args: any[]
+  ) {
+    this.socket.emit(event, ...args);
+    this.broadcast(otherEvent, ...args);
+  }
+
+  broadcastWithId(event: SocketEvent, ...args: any[]) {
+    this.nearbyPlayers.forEach((player) => {
+      player.socket.emit(event, [this.id, ...args]);
+    });
+  }
+
+  broadcast(event: SocketEvent, ...args: any[]) {
+    this.nearbyPlayers.forEach((player) => {
+      player.socket.emit(event, ...args);
+    });
   }
 }
