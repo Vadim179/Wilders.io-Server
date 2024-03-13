@@ -1,7 +1,6 @@
-import { Server } from "socket.io";
-import { getSockets } from "@/helpers/getSockets";
 import { physicsEngine } from "./PhysicsEngine";
 import { Collectable } from "@/entities/Collectable";
+import { CustomWsServer } from "ws";
 
 /**
  * Used to handle in-game cycles like player stats, time-cycle, etc.
@@ -12,14 +11,12 @@ export class CycleSystem {
   /**
    * This function is called on every cycle iteration
    *
-   * @param io Socket.io Server
+   * @param ws CustomWsServer
    *
    * @returns {void}
    */
-  private static handleCycleIteration(io: Server) {
-    const sockets = getSockets(io);
-
-    sockets.forEach((socket) => {
+  private static handleCycleIteration(ws: CustomWsServer) {
+    ws.clients.forEach((socket) => {
       socket.player.handleCycle();
     });
 
@@ -33,12 +30,12 @@ export class CycleSystem {
   /**
    * Start cycle system
    *
-   * @param io Socket.io Server
+   * @param ws CustomWsServer
    *
    * @returns {this}
    */
-  static startCycle(io: Server) {
-    setInterval(() => this.handleCycleIteration(io), this.cycleDuration);
+  static startCycle(ws: CustomWsServer) {
+    setInterval(() => this.handleCycleIteration(ws), this.cycleDuration);
     console.log("- Cycle system started.".cyan);
     return this;
   }

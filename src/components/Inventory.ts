@@ -2,8 +2,13 @@ import EventEmitter from "events";
 import { Item } from "@/enums/itemEnum";
 
 class Slot {
-  item: Item | null = null;
-  amount = 0;
+  item: Item | null;
+  amount: number;
+
+  constructor(item?: Item | null, amount?: number) {
+    this.item = item === undefined ? null : item;
+    this.amount = amount === undefined ? 0 : amount;
+  }
 
   add(item: Item, amount: number) {
     if (this.item !== null) {
@@ -29,14 +34,30 @@ class Slot {
 export class Inventory extends EventEmitter {
   private slotCount = 8;
   private slots: Slot[];
+  private previousSlots: Slot[];
 
   constructor() {
     super();
     this.slots = new Array(this.slotCount).fill(null).map(() => new Slot());
+    this.updatePreviousSlots();
   }
 
   getItems() {
     return this.slots.map((slot) => [slot.item, slot.amount]);
+  }
+
+  getChangedSlots() {
+    return this.slots.filter(
+      (slot, i) =>
+        this.previousSlots[i].item !== slot.item ||
+        this.previousSlots[i].amount !== slot.amount,
+    );
+  }
+
+  updatePreviousSlots() {
+    this.previousSlots = this.slots.map(
+      (slot) => new Slot(slot.item, slot.amount),
+    );
   }
 
   addItem(item: Item, amount: number, emit = true) {

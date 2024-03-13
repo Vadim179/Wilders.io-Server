@@ -1,5 +1,8 @@
 import Matter from "matter-js";
-import { Server, Socket } from "socket.io";
+import {
+  // CustomWsServer,
+  WebSocket,
+} from "ws";
 
 import { physicsEngine } from "@/components/PhysicsEngine";
 import { Inventory } from "@/components/Inventory";
@@ -16,13 +19,13 @@ import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
 import { EventEmitter } from "stream";
 import { SocketEvent } from "@/enums/socketEvent";
-import { getSockets } from "@/helpers/getSockets";
-import { isPlayerNearby } from "@/helpers/isPlayerNearby";
+// import { isPlayerNearby } from "@/helpers/isPlayerNearby";
+import { sendBinaryDataToClient } from "@/helpers/sendBinaryDataToClient";
 
 enum Stat {
-  Hunger,
-  Temperature,
-  Health,
+  Hunger = 0,
+  Temperature = 1,
+  Health = 2,
 }
 
 export class Player extends EventEmitter {
@@ -49,20 +52,24 @@ export class Player extends EventEmitter {
   previousX = 0;
   previousY = 0;
 
-  constructor(private readonly socket: Socket, private readonly io: Server) {
+  constructor(
+    private readonly socket: WebSocket, // private readonly ws: CustomWsServer,
+  ) {
     super();
-    this.id = socket.id;
-    this.username = socket.handshake.query.username as string;
+    // this.id = socket.id;
+    // this.username = socket.handshake.query.username as string;
+    this.username = "";
+    this.id = "";
 
-    const spawnPosition = getRandomSpawnPosition();
-    this.previousX = spawnPosition.x;
-    this.previousY = spawnPosition.y;
+    const [spawnX, spawnY, index] = getRandomSpawnPosition();
+    this.previousX = spawnX;
+    this.previousY = spawnY;
 
-    this.body = physicsEngine.loadPlayer(spawnPosition);
+    this.body = physicsEngine.loadPlayer({ x: spawnX, y: spawnY });
     this.body.ownerClass = this;
 
     socket.player = this;
-    socket.emit(SocketEvent.Init, spawnPosition);
+    sendBinaryDataToClient(socket, SocketEvent.Init, index);
     console.log(`- Player [${this.username.underline}] joined.`.yellow);
 
     this.inventory.on("update", (items: Item[][]) => {
@@ -74,14 +81,35 @@ export class Player extends EventEmitter {
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
-      socket.emit(SocketEvent.InventoryUpdate, items);
+      const changedSlots = this.inventory
+        .getChangedSlots()
+        .reduce<(number | null)[]>((acc, slot, index) => {
+          acc.push(index, slot.item, slot.amount);
+          return acc;
+        }, []);
+
+      if (changedSlots.length > 0) {
+        sendBinaryDataToClient(
+          socket,
+          SocketEvent.InventoryUpdate,
+          changedSlots,
+        );
+      }
     });
 
     this.on("stats_update", (stats) => {
-      socket.emit(SocketEvent.StatsUpdate, stats);
-    });
+      const statsPayload = [
+        stats[Stat.Health],
+        stats[Stat.Temperature],
+        stats[Stat.Hunger],
+      ].map(Math.floor);
 
-    this.calculateNearbyPlayers();
+      sendBinaryDataToClient(
+        this.socket,
+        SocketEvent.StatsUpdate,
+        statsPayload,
+      );
+    });
   }
 
   get health() {
@@ -143,7 +171,7 @@ export class Player extends EventEmitter {
    */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
-    this.broadcastWithId(SocketEvent.PlayerRemove);
+    // this.broadcastWithId(SocketEvent.PlayerRemove);
     return this;
   }
 
@@ -157,11 +185,7 @@ export class Player extends EventEmitter {
   setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
-    this.socketEmitAndBroadcastWithId(
-      SocketEvent.HelmetUpdate,
-      SocketEvent.HelmetUpdateOther,
-      helmet,
-    );
+    sendBinaryDataToClient(this.socket, SocketEvent.HelmetUpdate, helmet);
     return this;
   }
 
@@ -175,9 +199,9 @@ export class Player extends EventEmitter {
   setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
-    this.socketEmitAndBroadcastWithId(
+    sendBinaryDataToClient(
+      this.socket,
       SocketEvent.WeaponOrToolUpdate,
-      SocketEvent.WeaponOrToolUpdateOther,
       weaponOrTool,
     );
     return this;
@@ -193,7 +217,7 @@ export class Player extends EventEmitter {
   setAngle(angle: number) {
     this.angle = angle;
     Matter.Body.setAngle(this.body, angle);
-    this.broadcastWithId(SocketEvent.RotateOther, angle);
+    // this.broadcastWithId(SocketEvent.RotateOther, angle);
     return this;
   }
 
@@ -232,14 +256,15 @@ export class Player extends EventEmitter {
   /**
    * Set movement direction
    *
-   * @param direction 0 for X, 1 for Y
-   * @param value
+   * @param x X direction
+   * @param y Y direction
    *
    * @returns {this}
    */
-  setDirection(direction: number, value: number) {
-    if (direction === 0) return (this.dirX = value), this;
-    return (this.dirY = value), this;
+  setDirection(x: number, y: number) {
+    this.dirX = x === 2 ? -1 : x;
+    this.dirY = y === 2 ? -1 : y;
+    return this;
   }
 
   /**
@@ -255,76 +280,68 @@ export class Player extends EventEmitter {
     let y = dirY * speed;
 
     if (dirX !== 0 && dirY !== 0) {
-      x /= Math.sqrt(2);
-      y /= Math.sqrt(2);
+      const invSqrt2 = 0.70710678118;
+      x *= invSqrt2;
+      y *= invSqrt2;
     }
 
     Matter.Body.setVelocity(body, { x, y });
 
     if (
-      body.position.x === this.previousX &&
-      body.position.y === this.previousY
+      body.position.x !== this.previousX ||
+      body.position.y !== this.previousY
     ) {
-      return this;
+      const position = [
+        Math.round(body.position.x),
+        Math.round(body.position.y),
+      ];
+
+      sendBinaryDataToClient(this.socket, SocketEvent.MovementUpdate, position);
+      this.previousX = this.body.position.x;
+      this.previousY = this.body.position.y;
     }
-
-    const xBuffer = Buffer.alloc(8);
-    const yBuffer = Buffer.alloc(8);
-
-    xBuffer.writeDoubleLE(this.body.position.x);
-    yBuffer.writeDoubleLE(this.body.position.y);
-
-    const arrayBuffer = Buffer.concat([xBuffer, yBuffer]);
-    this.socketEmitAndBroadcastWithId(
-      SocketEvent.MovementUpdate,
-      SocketEvent.MovementUpdateOther,
-      arrayBuffer,
-    );
-
-    this.previousX = this.body.position.x;
-    this.previousY = this.body.position.y;
 
     return this;
   }
 
-  calculateNearbyPlayers() {
-    const otherPlayers = getSockets(this.io);
+  // calculateNearbyPlayers() {
+  //   const otherPlayers = getSockets(this.io);
 
-    const currentNearbyPlayers = otherPlayers
-      .filter(
-        (socket) =>
-          socket.player.id !== this.id && isPlayerNearby(this, socket.player),
-      )
-      .map((socket) => socket.player);
+  //   const currentNearbyPlayers = otherPlayers
+  //     .filter(
+  //       (socket) =>
+  //         socket.player.id !== this.id && isPlayerNearby(this, socket.player),
+  //     )
+  //     .map((socket) => socket.player);
 
-    const newNearbyPlayers = currentNearbyPlayers.filter(
-      (player) => !this.nearbyPlayers.includes(player),
-    );
+  //   const newNearbyPlayers = currentNearbyPlayers.filter(
+  //     (player) => !this.nearbyPlayers.includes(player),
+  //   );
 
-    const removedNearbyPlayers = this.nearbyPlayers.filter(
-      (player) => !currentNearbyPlayers.includes(player),
-    );
+  //   const removedNearbyPlayers = this.nearbyPlayers.filter(
+  //     (player) => !currentNearbyPlayers.includes(player),
+  //   );
 
-    newNearbyPlayers.forEach((player) => {
-      this.socket.emit(SocketEvent.PlayerInitialization, [
-        player.id,
-        player.username,
-        player.body.position.x,
-        player.body.position.y,
-        player.angle,
-      ]);
-    });
+  //   newNearbyPlayers.forEach((player) => {
+  //     this.socket.emit(SocketEvent.PlayerInitialization, [
+  //       player.id,
+  //       player.username,
+  //       player.body.position.x,
+  //       player.body.position.y,
+  //       player.angle,
+  //     ]);
+  //   });
 
-    removedNearbyPlayers.forEach((player) => {
-      this.socket.emit(SocketEvent.PlayerRemove, player.id);
-    });
+  //   removedNearbyPlayers.forEach((player) => {
+  //     this.socket.emit(SocketEvent.PlayerRemove, player.id);
+  //   });
 
-    this.nearbyPlayers = currentNearbyPlayers;
-  }
+  //   this.nearbyPlayers = currentNearbyPlayers;
+  // }
 
   handleTick() {
     this.calculatePosition();
-    this.calculateNearbyPlayers();
+    // this.calculateNearbyPlayers();
     return this;
   }
 
@@ -388,23 +405,6 @@ export class Player extends EventEmitter {
 
       if (Matter.Bounds.overlaps(body.bounds, colliderBounds)) {
         if (body.ownerClass instanceof Collectable) {
-          const bodyAttackDirection = {
-            x: body.position.x - attackPosition.x,
-            y: body.position.y - attackPosition.y,
-          };
-
-          const bodyAttackAngle = Math.atan2(
-            bodyAttackDirection.y,
-            bodyAttackDirection.x,
-          );
-
-          // TODO: Send all collectables to the client together
-          this.socketEmitAndBroadcast(
-            SocketEvent.AnimateCollectable,
-            SocketEvent.AnimateCollectable,
-            [body.ownerClass.id, bodyAttackAngle],
-          );
-
           const { item, amount } = body.ownerClass.collect(this.collectRank);
           if (item !== null) this.inventory.addItem(item, amount);
         } else if (body.ownerClass instanceof Player) {
@@ -414,40 +414,7 @@ export class Player extends EventEmitter {
       }
     }
 
-    this.socketEmitAndBroadcastWithId(
-      SocketEvent.Attack,
-      SocketEvent.AttackOther,
-    );
+    sendBinaryDataToClient(this.socket, SocketEvent.Attack);
     return this;
-  }
-
-  socketEmitAndBroadcastWithId(
-    event: SocketEvent,
-    otherEvent: SocketEvent,
-    ...args: any[]
-  ) {
-    this.socket.emit(event, ...args);
-    this.broadcastWithId(otherEvent, ...args);
-  }
-
-  socketEmitAndBroadcast(
-    event: SocketEvent,
-    otherEvent: SocketEvent,
-    ...args: any[]
-  ) {
-    this.socket.emit(event, ...args);
-    this.broadcast(otherEvent, ...args);
-  }
-
-  broadcastWithId(event: SocketEvent, ...args: any[]) {
-    this.nearbyPlayers.forEach((player) => {
-      player.socket.emit(event, [this.id, ...args]);
-    });
-  }
-
-  broadcast(event: SocketEvent, ...args: any[]) {
-    this.nearbyPlayers.forEach((player) => {
-      player.socket.emit(event, ...args);
-    });
   }
 }
