@@ -31,7 +31,6 @@ enum Stat {
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
-  // @ts-ignore
   private angle = 0;
 
   private stats = {
