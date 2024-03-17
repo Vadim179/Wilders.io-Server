@@ -1,7 +1,7 @@
 import { map } from "@/config/mapConfig";
-import { Position } from "@/types/mapTypes";
 
-export function getRandomSpawnPosition(): Position {
-  const randomSpawnPosition = Math.floor(Math.random() * map.spawners.length);
-  return map.spawners[randomSpawnPosition];
+export function getRandomSpawnPosition(): number[] {
+  const randomSpawnPosition = (Math.random() * map.spawners.length) | 0;
+  const spawner = map.spawners[randomSpawnPosition];
+  return [spawner.x, spawner.y, randomSpawnPosition];
 }

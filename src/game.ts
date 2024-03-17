@@ -1,82 +1,83 @@
-import Matter from "matter-js";
-import { Server } from "socket.io";
-
+import { CustomWsServer, WebSocket } from "ws";
 import { Player } from "./entities/Player";
-import { physicsEngine } from "./components/PhysicsEngine";
-import { CycleSystem } from "./components/CycleSystem";
-import { GameLoop } from "./components/GameLoop";
-import { Item } from "./enums/itemEnum";
-import { Crafting } from "./components/Crafting";
 import { SocketEvent } from "./enums/socketEvent";
 
-export function initializeGame(io: Server) {
-  CycleSystem.startCycle(io), GameLoop.startLoop(io);
+import { CycleSystem } from "./components/CycleSystem";
+import { GameLoop } from "./components/GameLoop";
+import { Crafting } from "./components/Crafting";
 
-  io.on("connection", (socket) => {
-    const player = new Player(socket, io);
+import { decodeBinaryDataFromClient } from "./helpers/decodeBinaryDataFromClient";
+import { decodeMovement } from "./helpers/decodeMovement";
+import { releasePlayerId } from "./helpers/generatePlayerId";
+import { broadcastEmit } from "./helpers/socketEmit";
 
-    // Handle player actions
-    socket.on(SocketEvent.Move, ([direction, value]: number[]) => {
-      player.setDirection(direction, value);
-    });
+export function initializeGame(ws: CustomWsServer) {
+  CycleSystem.startCycle(ws), GameLoop.startLoop(ws);
 
-    socket.on(SocketEvent.Rotate, (angle: number) => {
-      player.setAngle(angle);
-    });
-
-    socket.on(SocketEvent.Craft, (item: Item) => {
-      Crafting.craft(player.inventory, item);
-    });
-
-    socket.on(SocketEvent.UseItem, (slotIndex: number) => {
-      player.useItem(slotIndex);
-    });
+  ws.on("connection", (socket: WebSocket) => {
+    const player = new Player(socket, ws);
 
     let lastAttackTime = 0;
     let attackInterval: NodeJS.Timeout;
     const attackDelay = 500;
 
-    socket.on(SocketEvent.AttackStart, () => {
-      const now = Date.now();
+    socket.onmessage = function (message) {
+      console.log(
+        `Received message from client [${Date.now()}]`.black.bgYellow,
+      );
+      const [event, data] = decodeBinaryDataFromClient(message.data);
 
-      if (now - lastAttackTime >= attackDelay) {
-        lastAttackTime = now;
+      switch (event) {
+        case SocketEvent.Join:
+          player.username = data;
+          console.log(`- Player [${data.underline}] joined.`.yellow);
+          broadcastEmit(player.id, ws, SocketEvent.PlayerInitialization, [
+            player.id,
+            player.username,
+            Math.round(player.body.position.x),
+            Math.round(player.body.position.y),
+            player.body.angle,
+          ]);
+          break;
+        case SocketEvent.Move:
+          const { x, y } = decodeMovement(data);
+          player.setDirection(x, y);
+          break;
+        case SocketEvent.AttackStart:
+          const now = Date.now();
 
-        if (!player.isAttacking) {
-          player.isAttacking = true;
-          player.attack();
+          if (now - lastAttackTime >= attackDelay) {
+            lastAttackTime = now;
 
-          attackInterval = setInterval(() => {
-            if (player.isAttacking) {
+            if (!player.isAttacking) {
+              player.isAttacking = true;
               player.attack();
+
+              attackInterval = setInterval(() => {
+                if (player.isAttacking) player.attack();
+              }, attackDelay);
             }
-          }, attackDelay);
-        }
+          }
+          break;
+        case SocketEvent.AttackStop:
+          player.isAttacking = false;
+          clearInterval(attackInterval);
+          break;
+        case SocketEvent.Craft:
+          Crafting.craft(player.inventory, data);
+          break;
+        case SocketEvent.UseItem:
+          player.useItem(data);
+          break;
+        case SocketEvent.Rotate:
+          player.setAngle(data);
+          break;
       }
-    });
+    };
 
-    socket.on(SocketEvent.AttackStop, () => {
-      player.isAttacking = false;
-      clearInterval(attackInterval);
-    });
-
-    // * DEBUGGING
-    socket.on("requestPhysicsData", () => {
-      const bodiesData = Matter.Composite.allBodies(
-        physicsEngine.getWorld(),
-      ).map((body) => ({
-        position: body.position,
-        angle: body.angle,
-        radius: body.circleRadius,
-        label: body.label,
-      }));
-
-      socket.emit("physicsData", bodiesData);
-    });
-
-    // Handle player disconnect
-    socket.on("disconnect", () => {
+    socket.on("close", () => {
       player.destroy();
+      releasePlayerId(player.id);
     });
   });
 }
