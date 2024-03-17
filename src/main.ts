@@ -16,5 +16,5 @@ const wsServer = new ws.Server({ port: 8000 });
 initializeGame(wsServer as CustomWsServer);
 
 wsServer.on("listening", () => {
-  console.log("Server running on: http://localhost:8000".green);
+  console.log("WS server running on: http://localhost:8000".cyan);
 });

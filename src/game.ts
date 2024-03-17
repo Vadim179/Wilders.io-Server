@@ -8,12 +8,14 @@ import { Crafting } from "./components/Crafting";
 
 import { decodeBinaryDataFromClient } from "./helpers/decodeBinaryDataFromClient";
 import { decodeMovement } from "./helpers/decodeMovement";
+import { releasePlayerId } from "./helpers/generatePlayerId";
+import { broadcastEmit } from "./helpers/socketEmit";
 
 export function initializeGame(ws: CustomWsServer) {
   CycleSystem.startCycle(ws), GameLoop.startLoop(ws);
 
   ws.on("connection", (socket: WebSocket) => {
-    const player = new Player(socket);
+    const player = new Player(socket, ws);
 
     let lastAttackTime = 0;
     let attackInterval: NodeJS.Timeout;
@@ -26,6 +28,17 @@ export function initializeGame(ws: CustomWsServer) {
       const [event, data] = decodeBinaryDataFromClient(message.data);
 
       switch (event) {
+        case SocketEvent.Join:
+          player.username = data;
+          console.log(`- Player [${data.underline}] joined.`.yellow);
+          broadcastEmit(player.id, ws, SocketEvent.PlayerInitialization, [
+            player.id,
+            player.username,
+            Math.round(player.body.position.x),
+            Math.round(player.body.position.y),
+            player.body.angle,
+          ]);
+          break;
         case SocketEvent.Move:
           const { x, y } = decodeMovement(data);
           player.setDirection(x, y);
@@ -64,6 +77,7 @@ export function initializeGame(ws: CustomWsServer) {
 
     socket.on("close", () => {
       player.destroy();
+      releasePlayerId(player.id);
     });
   });
 }

@@ -6,6 +6,7 @@ declare module "ws" {
   }
 
   interface WebSocket {
+    id: number;
     player: Player;
     onmessage: (message: CustomMessageEvent) => void;
   }
