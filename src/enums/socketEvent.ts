@@ -22,4 +22,5 @@ export enum SocketEvent {
   PlayerInitialization = 0x14,
   PlayerRemove = 0x15,
   Join = 0x16,
+  Chat = 0x17,
 }

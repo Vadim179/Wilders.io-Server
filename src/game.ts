@@ -9,7 +9,10 @@ import { Crafting } from "./components/Crafting";
 import { decodeBinaryDataFromClient } from "./helpers/decodeBinaryDataFromClient";
 import { decodeMovement } from "./helpers/decodeMovement";
 import { releasePlayerId } from "./helpers/generatePlayerId";
-import { broadcastEmit } from "./helpers/socketEmit";
+import {
+  broadcastEmit,
+  broadcastEmitToNearbyPlayers,
+} from "./helpers/socketEmit";
 
 export function initializeGame(ws: CustomWsServer) {
   CycleSystem.startCycle(ws), GameLoop.startLoop(ws);
@@ -71,6 +74,12 @@ export function initializeGame(ws: CustomWsServer) {
           break;
         case SocketEvent.Rotate:
           player.setAngle(data);
+          break;
+        case SocketEvent.Chat:
+          broadcastEmitToNearbyPlayers(player, SocketEvent.Chat, [
+            player.id,
+            data,
+          ]);
           break;
       }
     };
