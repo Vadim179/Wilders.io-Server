@@ -20,10 +20,10 @@ export function sendBinaryDataToClient(
 
   const messageSize = message.byteLength;
   totalBytesSent += messageSize;
-  console.log(
-    `Sent message to the client [${Date.now()}] {${messageSize} | ${totalBytesSent}}`
-      .black.bgCyan,
-  );
+  // console.log(
+  //   `Sent message to the client [${Date.now()}] {${messageSize} | ${totalBytesSent}}`
+  //     .black.bgCyan,
+  // );
   ws.send(message, { binary: true }, (error) => {
     if (error) {
       console.error("Error sending binary data:", error);

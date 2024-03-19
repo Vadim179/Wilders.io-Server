@@ -30,6 +30,7 @@ enum Stat {
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
+  angle = 0;
 
   private stats = {
     [Stat.Hunger]: 100,
@@ -69,6 +70,7 @@ export class Player extends EventEmitter {
 
     socket.player = this;
 
+    // TODO: Move the map to a reusable function
     const otherPlayers = Array.from(this.ws.clients)
       .filter((socket) => socket.id !== this.id)
       .map(({ player }) => [
@@ -76,7 +78,7 @@ export class Player extends EventEmitter {
         player.username,
         Math.round(player.body.position.x),
         Math.round(player.body.position.y),
-        player.body.angle,
+        player.angle,
       ]);
 
     sendBinaryDataToClient(socket, SocketEvent.Init, [index, id, otherPlayers]);
@@ -87,6 +89,7 @@ export class Player extends EventEmitter {
         ([item]) => item === this.weaponOrTool,
       );
 
+      // TODO: Can be done in the client-side
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
@@ -104,6 +107,8 @@ export class Player extends EventEmitter {
           changedSlots,
         );
       }
+
+      this.inventory.updatePreviousSlots();
     });
 
     this.on("stats_update", () => {
@@ -230,7 +235,7 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   setAngle(angle: number) {
-    Matter.Body.setAngle(this.body, angle);
+    this.angle = angle;
     broadcastEmitToNearbyPlayers(this, SocketEvent.RotateOther, [
       this.id,
       angle,
@@ -287,6 +292,7 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
+  // TODO: Send player movements in larger packets
   calculatePosition() {
     const { dirX, dirY, body } = this;
     const speed = 12;
@@ -376,7 +382,8 @@ export class Player extends EventEmitter {
    * @returns {void}
    */
   attack() {
-    const angle = this.body.angle - (90 * Math.PI) / 180;
+    // this.angle is in degrees
+    const angle = (this.angle * Math.PI) / 180 - Math.PI / 2;
 
     const attackBodyDistance = 40;
     const attackBodyRadius = 40;

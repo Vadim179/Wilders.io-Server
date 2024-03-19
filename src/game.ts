@@ -25,21 +25,21 @@ export function initializeGame(ws: CustomWsServer) {
     const attackDelay = 500;
 
     socket.onmessage = function (message) {
-      console.log(
-        `Received message from client [${Date.now()}]`.black.bgYellow,
-      );
+      // console.log(
+      //   `Received message from client [${Date.now()}]`.black.bgYellow,
+      // );
       const [event, data] = decodeBinaryDataFromClient(message.data);
 
       switch (event) {
         case SocketEvent.Join:
           player.username = data;
-          console.log(`- Player [${data.underline}] joined.`.yellow);
+          // console.log(`- Player [${data.underline}] joined.`.yellow);
           broadcastEmit(player.id, ws, SocketEvent.PlayerInitialization, [
             player.id,
             player.username,
             Math.round(player.body.position.x),
             Math.round(player.body.position.y),
-            player.body.angle,
+            player.angle,
           ]);
           break;
         case SocketEvent.Move:
