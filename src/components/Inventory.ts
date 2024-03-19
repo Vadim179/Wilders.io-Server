@@ -47,10 +47,6 @@ export class Inventory extends EventEmitter {
   }
 
   getChangedSlots() {
-    console.log(
-      this.slots.map((slot) => [slot.item, slot.amount]),
-      this.previousSlots.map((slot) => [slot.item, slot.amount]),
-    );
     return this.slots.filter(
       (slot, i) =>
         this.previousSlots[i].item !== slot.item ||

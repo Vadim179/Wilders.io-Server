@@ -25,15 +25,15 @@ export function initializeGame(ws: CustomWsServer) {
     const attackDelay = 500;
 
     socket.onmessage = function (message) {
-      // console.log(
-      //   `Received message from client [${Date.now()}]`.black.bgYellow,
-      // );
+      console.log(
+        `Received message from client [${Date.now()}]`.black.bgYellow,
+      );
       const [event, data] = decodeBinaryDataFromClient(message.data);
 
       switch (event) {
         case SocketEvent.Join:
           player.username = data;
-          // console.log(`- Player [${data.underline}] joined.`.yellow);
+          console.log(`- Player [${data.underline}] joined.`.yellow);
           broadcastEmit(player.id, ws, SocketEvent.PlayerInitialization, [
             player.id,
             player.username,
@@ -78,7 +78,7 @@ export function initializeGame(ws: CustomWsServer) {
         case SocketEvent.Chat:
           broadcastEmitToNearbyPlayers(player, SocketEvent.Chat, [
             player.id,
-            data,
+            data.slice(0, 64),
           ]);
           break;
       }
