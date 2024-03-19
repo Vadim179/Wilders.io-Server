@@ -19,7 +19,7 @@ import { SocketEvent } from "@/enums/socketEvent";
 import { isPlayerNearby } from "@/helpers/isPlayerNearby";
 import { sendBinaryDataToClient } from "@/helpers/sendBinaryDataToClient";
 import { generatePlayerId } from "@/helpers/generatePlayerId";
-import { broadcastEmit } from "@/helpers/socketEmit";
+import { broadcastEmitToNearbyPlayers } from "@/helpers/socketEmit";
 
 enum Stat {
   Hunger = 0,
@@ -30,6 +30,7 @@ enum Stat {
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
+  angle = 0;
 
   private stats = {
     [Stat.Hunger]: 100,
@@ -51,8 +52,8 @@ export class Player extends EventEmitter {
   previousY = 0;
 
   constructor(
-    private readonly socket: WebSocket,
-    private readonly ws: CustomWsServer,
+    public readonly socket: WebSocket,
+    public readonly ws: CustomWsServer,
   ) {
     super();
 
@@ -69,6 +70,7 @@ export class Player extends EventEmitter {
 
     socket.player = this;
 
+    // TODO: Move the map to a reusable function
     const otherPlayers = Array.from(this.ws.clients)
       .filter((socket) => socket.id !== this.id)
       .map(({ player }) => [
@@ -76,7 +78,7 @@ export class Player extends EventEmitter {
         player.username,
         Math.round(player.body.position.x),
         Math.round(player.body.position.y),
-        player.body.angle,
+        player.angle,
       ]);
 
     sendBinaryDataToClient(socket, SocketEvent.Init, [index, id, otherPlayers]);
@@ -87,6 +89,7 @@ export class Player extends EventEmitter {
         ([item]) => item === this.weaponOrTool,
       );
 
+      // TODO: Can be done in the client-side
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
@@ -104,6 +107,8 @@ export class Player extends EventEmitter {
           changedSlots,
         );
       }
+
+      this.inventory.updatePreviousSlots();
     });
 
     this.on("stats_update", () => {
@@ -178,7 +183,7 @@ export class Player extends EventEmitter {
    */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
-    broadcastEmit(this.id, this.ws, SocketEvent.PlayerRemove, this.id);
+    broadcastEmitToNearbyPlayers(this, SocketEvent.PlayerRemove, this.id);
     return this;
   }
 
@@ -193,7 +198,7 @@ export class Player extends EventEmitter {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
     sendBinaryDataToClient(this.socket, SocketEvent.HelmetUpdate, helmet);
-    broadcastEmit(this.id, this.ws, SocketEvent.HelmetUpdateOther, [
+    broadcastEmitToNearbyPlayers(this, SocketEvent.HelmetUpdateOther, [
       this.id,
       helmet,
     ]);
@@ -215,7 +220,7 @@ export class Player extends EventEmitter {
       SocketEvent.WeaponOrToolUpdate,
       weaponOrTool,
     );
-    broadcastEmit(this.id, this.ws, SocketEvent.WeaponOrToolUpdateOther, [
+    broadcastEmitToNearbyPlayers(this, SocketEvent.WeaponOrToolUpdateOther, [
       this.id,
       weaponOrTool,
     ]);
@@ -230,8 +235,11 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   setAngle(angle: number) {
-    Matter.Body.setAngle(this.body, angle);
-    broadcastEmit(this.id, this.ws, SocketEvent.RotateOther, [this.id, angle]);
+    this.angle = angle;
+    broadcastEmitToNearbyPlayers(this, SocketEvent.RotateOther, [
+      this.id,
+      angle,
+    ]);
     return this;
   }
 
@@ -252,8 +260,6 @@ export class Player extends EventEmitter {
         this.setHelmet(item);
         break;
       case ItemCategory.Weapon:
-        this.setWeaponOrTool(item);
-        break;
       case ItemCategory.Pickaxe:
         this.setWeaponOrTool(item);
         break;
@@ -286,9 +292,10 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
+  // TODO: Send player movements in larger packets
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = 14;
+    const speed = 12;
 
     let x = dirX * speed;
     let y = dirY * speed;
@@ -311,7 +318,7 @@ export class Player extends EventEmitter {
       ];
 
       sendBinaryDataToClient(this.socket, SocketEvent.MovementUpdate, position);
-      broadcastEmit(this.id, this.ws, SocketEvent.MovementUpdateOther, [
+      broadcastEmitToNearbyPlayers(this, SocketEvent.MovementUpdateOther, [
         this.id,
         ...position,
       ]);
@@ -375,7 +382,8 @@ export class Player extends EventEmitter {
    * @returns {void}
    */
   attack() {
-    const angle = this.body.angle - (90 * Math.PI) / 180;
+    // this.angle is in degrees
+    const angle = (this.angle * Math.PI) / 180 - Math.PI / 2;
 
     const attackBodyDistance = 40;
     const attackBodyRadius = 40;
@@ -411,7 +419,7 @@ export class Player extends EventEmitter {
     }
 
     sendBinaryDataToClient(this.socket, SocketEvent.Attack);
-    broadcastEmit(this.id, this.ws, SocketEvent.AttackOther, this.id);
+    broadcastEmitToNearbyPlayers(this, SocketEvent.AttackOther, this.id);
     return this;
   }
 }
