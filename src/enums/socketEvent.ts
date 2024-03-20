@@ -1,6 +1,6 @@
 // TODO: Separate into client and server enums
 export enum SocketEvent {
-  MovementUpdate = 0x00,
+  Tick = 0x00,
   Move = 0x01,
   Attack = 0x02,
   AttackOther = 0x03,

@@ -30,7 +30,9 @@ enum Stat {
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
+
   angle = 0;
+  previousAngle = 0;
 
   private stats = {
     [Stat.Hunger]: 100,
@@ -89,7 +91,6 @@ export class Player extends EventEmitter {
         ([item]) => item === this.weaponOrTool,
       );
 
-      // TODO: Can be done in the client-side
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
@@ -109,18 +110,6 @@ export class Player extends EventEmitter {
       }
 
       this.inventory.updatePreviousSlots();
-    });
-
-    this.on("stats_update", () => {
-      const statsPayload = [this.health, this.temperature, this.hunger].map(
-        Math.floor,
-      );
-
-      sendBinaryDataToClient(
-        this.socket,
-        SocketEvent.StatsUpdate,
-        statsPayload,
-      );
     });
   }
 
@@ -154,25 +143,24 @@ export class Player extends EventEmitter {
    * @returns {this}
    */
   handleCycle() {
-    this.drainStat(Stat.Hunger, 1.5, false);
-    this.drainStat(Stat.Temperature, 2, false);
+    this.drainStat(Stat.Hunger, 1.5);
+    this.drainStat(Stat.Temperature, 2);
 
     // Add health in case the temperature and hunger are over 70%
     if ([this.temperature, this.hunger].every((stat) => stat >= 70)) {
-      this.fillStat(Stat.Health, 10, false);
+      this.fillStat(Stat.Health, 10);
     }
 
     // Drain health in case temperature is 0%
     if (this.temperature === 0) {
-      this.drainStat(Stat.Health, 10, false);
+      this.drainStat(Stat.Health, 10);
     }
 
     // Drain health in case hunger is 0%
     if (this.hunger === 0) {
-      this.drainStat(Stat.Health, 20, false);
+      this.drainStat(Stat.Health, 20);
     }
 
-    this.emit("stats_update", this.stats);
     return this;
   }
 
@@ -197,11 +185,6 @@ export class Player extends EventEmitter {
   setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
-    sendBinaryDataToClient(this.socket, SocketEvent.HelmetUpdate, helmet);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.HelmetUpdateOther, [
-      this.id,
-      helmet,
-    ]);
     return this;
   }
 
@@ -215,15 +198,6 @@ export class Player extends EventEmitter {
   setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
-    sendBinaryDataToClient(
-      this.socket,
-      SocketEvent.WeaponOrToolUpdate,
-      weaponOrTool,
-    );
-    broadcastEmitToNearbyPlayers(this, SocketEvent.WeaponOrToolUpdateOther, [
-      this.id,
-      weaponOrTool,
-    ]);
     return this;
   }
 
@@ -236,10 +210,6 @@ export class Player extends EventEmitter {
    */
   setAngle(angle: number) {
     this.angle = angle;
-    broadcastEmitToNearbyPlayers(this, SocketEvent.RotateOther, [
-      this.id,
-      angle,
-    ]);
     return this;
   }
 
@@ -306,22 +276,15 @@ export class Player extends EventEmitter {
       y *= invSqrt2;
     }
 
+    x = Math.round(x);
+    y = Math.round(y);
+
     Matter.Body.setVelocity(body, { x, y });
 
     if (
       body.position.x !== this.previousX ||
       body.position.y !== this.previousY
     ) {
-      const position = [
-        Math.round(body.position.x),
-        Math.round(body.position.y),
-      ];
-
-      sendBinaryDataToClient(this.socket, SocketEvent.MovementUpdate, position);
-      broadcastEmitToNearbyPlayers(this, SocketEvent.MovementUpdateOther, [
-        this.id,
-        ...position,
-      ]);
       this.previousX = this.body.position.x;
       this.previousY = this.body.position.y;
     }
@@ -356,9 +319,8 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  drainStat(stat: Stat, value: number, emit = true) {
+  drainStat(stat: Stat, value: number) {
     this.stats[stat] = Math.max(0, this.stats[stat] - value);
-    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
@@ -370,9 +332,8 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  fillStat(stat: Stat, value: number, emit = true) {
+  fillStat(stat: Stat, value: number) {
     this.stats[stat] = Math.min(100, this.stats[stat] + value);
-    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
