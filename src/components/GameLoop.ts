@@ -19,7 +19,7 @@ interface PlayerPayload {
  * This is the main class of the game. It allows the game to run.
  */
 export class GameLoop {
-  private static iterationsPerSecond = 1000 / 15;
+  private static iterationsPerSecond = 1000 / 12;
   private static lastUpdate = Date.now();
   private static previousPlayerPayloads: Record<string, PlayerPayload> = {};
 
@@ -126,7 +126,7 @@ export class GameLoop {
         this.lastUpdate = now - (elapsed % this.iterationsPerSecond);
         this.handleTick(ws);
       }
-    }, this.iterationsPerSecond);
+    }, this.iterationsPerSecond / 2);
     console.log("- Game loop started.".cyan);
     return this;
   }
