@@ -4,18 +4,15 @@ import { sendBinaryDataToClient } from "@/helpers/sendBinaryDataToClient";
 import { CustomWsServer } from "ws";
 
 interface PlayerPayload {
-  i: number;
-
-  x?: number;
-  y?: number;
-  a?: number; // angle
-
-  b?: Item | null; // hand item
-  c?: Item | null; // head item
-
-  d?: number; // health
-  e?: number; // temperature
-  f?: number; // hunger
+  id: number;
+  x: number;
+  y: number;
+  angle: number;
+  weaponOrTool: Item | null;
+  helmet: Item | null;
+  health: number;
+  temperature: number;
+  hunger: number;
 }
 
 /**
@@ -41,15 +38,15 @@ export class GameLoop {
         const player = socket.player;
 
         acc[player.id] = {
-          i: player.id,
+          id: player.id,
           x: Math.round(player.body.position.x),
           y: Math.round(player.body.position.y),
-          a: player.angle,
-          b: player.weaponOrTool,
-          c: player.helmet,
-          d: Math.round(player.health),
-          e: Math.round(player.temperature),
-          f: Math.round(player.hunger),
+          angle: player.angle,
+          weaponOrTool: player.weaponOrTool,
+          helmet: player.helmet,
+          health: Math.round(player.health),
+          temperature: Math.round(player.temperature),
+          hunger: Math.round(player.hunger),
         };
 
         return acc;
@@ -57,57 +54,58 @@ export class GameLoop {
       {} as Record<string, PlayerPayload>,
     );
 
-    const finalPlayerPayloads = Object.values(currentPlayerPayloads).reduce(
+    const changedPlayers = Object.values(currentPlayerPayloads).reduce(
       (acc, payload) => {
-        const previousPayload = this.previousPlayerPayloads[payload.i];
+        const previousPayload = this.previousPlayerPayloads[payload.id];
 
         if (previousPayload) {
-          const finalPayload = {} as PlayerPayload;
-
-          Object.keys(payload).forEach((key) => {
+          const hasChanged = Object.keys(payload).some((key) => {
             const k = key as keyof PlayerPayload;
-
-            if (payload[k] !== this.previousPlayerPayloads[payload.i][k]) {
-              finalPayload[k] = payload[k] as number;
-            }
+            return payload[k] !== previousPayload[k];
           });
 
-          if (Object.keys(finalPayload).length > 0) {
-            finalPayload.i = payload.i;
+          if (hasChanged) {
+            acc[payload.id] = { ...payload };
           }
-
-          acc[payload.i] = finalPayload;
         }
 
-        this.previousPlayerPayloads[payload.i] = { ...payload };
+        this.previousPlayerPayloads[payload.id] = { ...payload };
         return acc;
       },
       {} as Record<string, PlayerPayload>,
     );
 
+    const mapPayloadToArr = (payload: PlayerPayload) => [
+      payload.id,
+      payload.x,
+      payload.y,
+      payload.angle,
+      payload.weaponOrTool,
+      payload.helmet,
+      payload.health,
+      payload.temperature,
+      payload.hunger,
+    ];
+
     ws.clients.forEach((socket) => {
-      const packet: PlayerPayload[] = [];
+      const packet = [];
       const player = socket.player;
+      const playerPayload = changedPlayers[player.id];
 
-      const playerPayload = finalPlayerPayloads[player.id];
-
-      if (playerPayload && Object.keys(playerPayload).length > 0) {
-        packet.push(playerPayload);
+      if (playerPayload) {
+        packet.push(mapPayloadToArr(playerPayload));
       }
 
       player.nearbyPlayers.forEach((nearbyPlayer) => {
-        const nearbyPlayerPayload = finalPlayerPayloads[nearbyPlayer.id];
+        const nearbyPlayerPayload = changedPlayers[nearbyPlayer.id];
 
-        if (
-          nearbyPlayerPayload &&
-          Object.keys(nearbyPlayerPayload).length > 0
-        ) {
-          packet.push(nearbyPlayerPayload);
+        if (nearbyPlayerPayload) {
+          packet.push(mapPayloadToArr(nearbyPlayerPayload));
         }
       });
 
       if (packet.length > 0) {
-        sendBinaryDataToClient(socket, SocketEvent.Tick, packet);
+        sendBinaryDataToClient(socket, SocketEvent.Tick, packet.flat());
       }
     });
   }
