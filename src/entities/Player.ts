@@ -72,7 +72,6 @@ export class Player extends EventEmitter {
 
     socket.player = this;
 
-    // TODO: Move the map to a reusable function
     const otherPlayers = Array.from(this.ws.clients)
       .filter((socket) => socket.id !== this.id)
       .map(({ player }) => [
@@ -81,6 +80,11 @@ export class Player extends EventEmitter {
         Math.round(player.body.position.x),
         Math.round(player.body.position.y),
         player.angle,
+        player.weaponOrTool,
+        player.helmet,
+        Math.round(player.health),
+        Math.round(player.temperature),
+        Math.round(player.hunger),
       ]);
 
     sendBinaryDataToClient(socket, SocketEvent.Init, [index, id, otherPlayers]);

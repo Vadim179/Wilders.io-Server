@@ -65,13 +65,7 @@ export class GameLoop {
           });
 
           if (hasChanged) {
-            acc[payload.id] = {
-              ...payload,
-              ...(payload.x === previousPayload.x &&
-              payload.y === previousPayload.y
-                ? { x: undefined, y: undefined }
-                : {}),
-            };
+            acc[payload.id] = { ...payload };
           }
         }
 
@@ -84,8 +78,8 @@ export class GameLoop {
     const mapPayloadToArr = (payload: PlayerPayload) => {
       return [
         payload.id,
-        ...(typeof payload.x === "undefined" ? [] : [payload.x]),
-        ...(typeof payload.y === "undefined" ? [] : [payload.y]),
+        payload.x,
+        payload.y,
         payload.angle,
         payload.weaponOrTool,
         payload.helmet,
