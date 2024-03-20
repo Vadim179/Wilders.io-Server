@@ -5,8 +5,8 @@ import { CustomWsServer } from "ws";
 
 interface PlayerPayload {
   id: number;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   angle: number;
   weaponOrTool: Item | null;
   helmet: Item | null;
@@ -65,7 +65,13 @@ export class GameLoop {
           });
 
           if (hasChanged) {
-            acc[payload.id] = { ...payload };
+            acc[payload.id] = {
+              ...payload,
+              ...(payload.x === previousPayload.x &&
+              payload.y === previousPayload.y
+                ? { x: undefined, y: undefined }
+                : {}),
+            };
           }
         }
 
@@ -75,17 +81,19 @@ export class GameLoop {
       {} as Record<string, PlayerPayload>,
     );
 
-    const mapPayloadToArr = (payload: PlayerPayload) => [
-      payload.id,
-      payload.x,
-      payload.y,
-      payload.angle,
-      payload.weaponOrTool,
-      payload.helmet,
-      payload.health,
-      payload.temperature,
-      payload.hunger,
-    ];
+    const mapPayloadToArr = (payload: PlayerPayload) => {
+      return [
+        payload.id,
+        ...(typeof payload.x === "undefined" ? [] : [payload.x]),
+        ...(typeof payload.y === "undefined" ? [] : [payload.y]),
+        payload.angle,
+        payload.weaponOrTool,
+        payload.helmet,
+        payload.health,
+        payload.temperature,
+        payload.hunger,
+      ];
+    };
 
     ws.clients.forEach((socket) => {
       const packet = [];

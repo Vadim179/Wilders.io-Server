@@ -262,7 +262,6 @@ export class Player extends EventEmitter {
    *
    * @returns {this}
    */
-  // TODO: Send player movements in larger packets
   calculatePosition() {
     const { dirX, dirY, body } = this;
     const speed = 12;
