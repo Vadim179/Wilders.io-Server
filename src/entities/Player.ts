@@ -15,17 +15,17 @@ import {
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
 import { EventEmitter } from "stream";
-import { SocketEvent } from "@/enums/socketEvent";
-import { isPlayerNearby } from "@/helpers/isPlayerNearby";
+import { ServerSocketEvent } from "@/enums/socketEvent";
+import { isEntityNearby } from "@/helpers/isEntityNearby";
 import { sendBinaryDataToClient } from "@/helpers/sendBinaryDataToClient";
-import { generatePlayerId } from "@/helpers/generatePlayerId";
-import { broadcastEmitToNearbyPlayers } from "@/helpers/socketEmit";
-
-enum Stat {
-  Hunger = 0,
-  Temperature = 1,
-  Health = 2,
-}
+import { generateEntityId, releaseEntityId } from "@/helpers/generateEntityId";
+import {
+  broadcastEmit,
+  broadcastEmitToNearbyPlayers,
+} from "@/helpers/socketEmit";
+import { Stat } from "@/enums/statEnum";
+import { Mob } from "./Mob";
+import { regenerativeMobRegistry } from "@/components/RegenerativeMobRegistry";
 
 export class Player extends EventEmitter {
   private dirX = 0;
@@ -47,7 +47,9 @@ export class Player extends EventEmitter {
   username: string;
   body: Matter.Body;
   inventory = new Inventory();
+
   nearbyPlayers: Player[] = [];
+  nearbyMobs: Mob[] = [];
 
   isAttacking = false;
   previousX = 0;
@@ -59,7 +61,7 @@ export class Player extends EventEmitter {
   ) {
     super();
 
-    const id = generatePlayerId();
+    const id = generateEntityId("player");
     this.id = id;
     this.socket.id = id;
 
@@ -72,6 +74,7 @@ export class Player extends EventEmitter {
 
     socket.player = this;
 
+    // Emit player initialization
     const otherPlayers = Array.from(this.ws.clients)
       .filter((socket) => socket.id !== this.id)
       .map(({ player }) => [
@@ -87,7 +90,24 @@ export class Player extends EventEmitter {
         Math.round(player.hunger),
       ]);
 
-    sendBinaryDataToClient(socket, SocketEvent.Init, [index, id, otherPlayers]);
+    const mobs = regenerativeMobRegistry
+      .getAllMobs()
+      .map((mob) => [
+        mob.mobTag,
+        mob.id,
+        mob.body.position.x,
+        mob.body.position.y,
+        mob.targetX,
+        mob.targetY,
+        mob.health,
+      ]);
+
+    sendBinaryDataToClient(socket, ServerSocketEvent.GameInit, [
+      index,
+      id,
+      otherPlayers,
+      mobs,
+    ]);
 
     this.inventory.on("update", (items: Item[][]) => {
       const hasHelmet = items.some(([item]) => item === this.helmet);
@@ -108,7 +128,7 @@ export class Player extends EventEmitter {
       if (changedSlots.length > 0) {
         sendBinaryDataToClient(
           socket,
-          SocketEvent.InventoryUpdate,
+          ServerSocketEvent.InventoryUpdate,
           changedSlots,
         );
       }
@@ -175,7 +195,8 @@ export class Player extends EventEmitter {
    */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.PlayerRemove, this.id);
+    broadcastEmit(this.id, this.ws, ServerSocketEvent.PlayerRemove, this.id);
+    releaseEntityId("player", this.id);
     return this;
   }
 
@@ -301,11 +322,22 @@ export class Player extends EventEmitter {
     const currentNearbyPlayers = otherPlayers
       .filter(
         (socket) =>
-          socket.player.id !== this.id && isPlayerNearby(this, socket.player),
+          socket.player.id !== this.id &&
+          isEntityNearby(this.body, socket.player.body),
       )
       .map((socket) => socket.player);
 
     this.nearbyPlayers = currentNearbyPlayers;
+  }
+
+  calculateNearbyMobs() {
+    const mobs = regenerativeMobRegistry.getAllMobs();
+
+    const currentNearbyMobs = mobs.filter((mob) =>
+      isEntityNearby(this.body, mob.body),
+    );
+
+    this.nearbyMobs = currentNearbyMobs;
   }
 
   handleTick() {
@@ -382,8 +414,8 @@ export class Player extends EventEmitter {
       }
     }
 
-    sendBinaryDataToClient(this.socket, SocketEvent.Attack);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.AttackOther, this.id);
+    sendBinaryDataToClient(this.socket, ServerSocketEvent.Attack);
+    broadcastEmitToNearbyPlayers(this, ServerSocketEvent.AttackOther, this.id);
     return this;
   }
 }

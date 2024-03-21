@@ -1,4 +1,4 @@
-import { SocketEvent } from "@/enums/socketEvent";
+import { ServerSocketEvent } from "@/enums/socketEvent";
 import { CustomWsServer, WebSocket } from "ws";
 import { sendBinaryDataToClient } from "./sendBinaryDataToClient";
 import { Player } from "@/entities/Player";
@@ -6,7 +6,7 @@ import { Player } from "@/entities/Player";
 export function broadcastEmit(
   id: number,
   ws: CustomWsServer,
-  eventName: SocketEvent,
+  eventName: ServerSocketEvent,
   data: any,
 ) {
   ws.clients.forEach((socket) => {
@@ -18,7 +18,7 @@ export function broadcastEmit(
 
 export function broadcastEmitToNearbyPlayers(
   player: Player,
-  eventName: SocketEvent,
+  eventName: ServerSocketEvent,
   data: any,
 ) {
   player.nearbyPlayers.forEach((nearbyPlayer) => {
@@ -31,7 +31,7 @@ export function broadcastEmitToNearbyPlayers(
 
 export function emitToAll(
   ws: CustomWsServer,
-  eventName: SocketEvent,
+  eventName: ServerSocketEvent,
   data: any,
 ) {
   ws.clients.forEach((socket) => {
