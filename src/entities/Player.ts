@@ -161,11 +161,6 @@ export class Player extends EventEmitter {
     return CollectRank.R1;
   }
 
-  /**
-   * Handle cycles. Cycles happen every 5 seconds.
-   *
-   * @returns {this}
-   */
   handleCycle() {
     this.drainStat(Stat.Hunger, 1.5);
     this.drainStat(Stat.Temperature, 2);
@@ -188,11 +183,6 @@ export class Player extends EventEmitter {
     return this;
   }
 
-  /**
-   * Destroy player (when dying or when disconnecting)
-   *
-   * @returns {this}
-   */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
     broadcastEmit(this.id, this.ws, ServerSocketEvent.PlayerRemove, this.id);
@@ -200,39 +190,18 @@ export class Player extends EventEmitter {
     return this;
   }
 
-  /**
-   * Set the helmet
-   *
-   * @param item
-   *
-   * @returns {this}
-   */
   setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
     return this;
   }
 
-  /**
-   * Set weapon or tool
-   *
-   * @param item
-   *
-   * @returns {this}
-   */
   setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
     return this;
   }
 
-  /**
-   * Set angle of rotation
-   *
-   * @param angle New angle
-   *
-   * @returns {this}
-   */
   setAngle(angle: number) {
     this.angle = angle;
     return this;
@@ -268,25 +237,12 @@ export class Player extends EventEmitter {
     }
   }
 
-  /**
-   * Set movement direction
-   *
-   * @param x X direction
-   * @param y Y direction
-   *
-   * @returns {this}
-   */
   setDirection(x: number, y: number) {
     this.dirX = x === 2 ? -1 : x;
     this.dirY = y === 2 ? -1 : y;
     return this;
   }
 
-  /**
-   * Calculates the new position based on the direction
-   *
-   * @returns {this}
-   */
   calculatePosition() {
     const { dirX, dirY, body } = this;
     const speed = 12;
@@ -346,39 +302,17 @@ export class Player extends EventEmitter {
     return this;
   }
 
-  /**
-   * Drain a stat (minim is 0)
-   *
-   * @param stat
-   * @param value
-   *
-   * @returns {this}
-   */
   drainStat(stat: Stat, value: number) {
     this.stats[stat] = Math.max(0, this.stats[stat] - value);
     return this;
   }
 
-  /**
-   * Fill a stat (maximum is 100)
-   *
-   * @param stat
-   * @param value
-   *
-   * @returns {this}
-   */
   fillStat(stat: Stat, value: number) {
     this.stats[stat] = Math.min(100, this.stats[stat] + value);
     return this;
   }
 
-  /**
-   * Calculates the entities within the collision range on attack
-   *
-   * @returns {void}
-   */
   attack() {
-    // this.angle is in degrees
     const angle = (this.angle * Math.PI) / 180 - Math.PI / 2;
 
     const attackBodyDistance = 40;
@@ -410,6 +344,9 @@ export class Player extends EventEmitter {
         } else if (body.ownerClass instanceof Player) {
           // TODO: Add weapon damage
           body.ownerClass.drainStat(Stat.Health, 10);
+        } else if (body.ownerClass instanceof Mob) {
+          // TODO: Add weapon damage
+          body.ownerClass.takeDamage(10);
         }
       }
     }

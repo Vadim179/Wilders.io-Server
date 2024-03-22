@@ -2,8 +2,7 @@ import { CustomWsServer, WebSocket } from "ws";
 import { Player } from "./entities/Player";
 import { ClientSocketEvent, ServerSocketEvent } from "./enums/socketEvent";
 
-import { CycleSystem } from "./components/CycleSystem";
-import { GameLoop } from "./components/GameLoop";
+import { gameLoop } from "./components/GameLoop";
 import { Crafting } from "./components/Crafting";
 import "./components/RegenerativeMobRegistry";
 
@@ -16,7 +15,7 @@ import {
 } from "./helpers/socketEmit";
 
 export function initializeGame(ws: CustomWsServer) {
-  CycleSystem.startCycle(ws), GameLoop.startLoop(ws);
+  gameLoop.startLoop(ws);
 
   ws.on("connection", (socket: WebSocket) => {
     const player = new Player(socket, ws);

@@ -2,62 +2,105 @@ import Matter from "matter-js";
 import { Player } from "./Player";
 import { physicsEngine } from "@/components/PhysicsEngine";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
+import { CustomWsServer } from "ws";
 
 export interface MobOptions {
   id: number;
   x: number;
   y: number;
-  radius: number;
+  bodyRadius: number;
   health: number;
-  movementRadius: number;
   visionRadius: number;
+  speed: number;
   mobTag: RegenerativeMobRegistryTag;
 }
 
 export class Mob {
-  id: number;
-  health: number;
-  movementRadius: number;
-  visionRadius: number;
-  mobTag: RegenerativeMobRegistryTag;
+  public id: number;
+  public health: number;
+  public visionRadius: number;
+  public mobTag: RegenerativeMobRegistryTag;
 
-  targetX = 0;
-  targetY = 0;
+  public targetX = 0;
+  public targetY = 0;
+  public speed = 0;
+  public speedMultiplierOnTarget = 3;
+  public randomWanderAngle = 0;
 
-  timerTickRate = 2000;
-  timer: NodeJS.Timeout;
+  private timerTickRate = 2000;
+  private timer: NodeJS.Timeout;
 
-  body: Matter.Body;
-  target: Player | null = null;
+  public body: Matter.Body;
+  public target: Player | null = null;
 
   constructor(options: MobOptions) {
-    const { id, x, y, radius, health, movementRadius, visionRadius, mobTag } =
-      options;
-
-    this.body = Matter.Bodies.circle(x, y, radius, { frictionAir: 0.1 });
-    this.body.ownerClass = this;
-
-    this.targetX = x;
-    this.targetY = y;
-
-    this.id = id;
-    this.health = health;
-    this.movementRadius = movementRadius;
-    this.visionRadius = visionRadius;
-    this.mobTag = mobTag;
-
-    this.timer = setInterval(this.handleTick.bind(this), this.timerTickRate);
+    this.initializeProperties(options);
+    this.initializeBody(options);
+    this.startTimer();
   }
 
-  handleTick() {}
+  private initializeProperties(options: MobOptions): void {
+    const { id, x, y, health, speed, visionRadius, mobTag } = options;
 
-  handleGameTick() {}
+    this.id = id;
+    this.targetX = x;
+    this.targetY = y;
+    this.speed = speed;
+    this.health = health;
+    this.visionRadius = visionRadius;
+    this.mobTag = mobTag;
+  }
 
-  setTarget(target: Player | null) {
+  private initializeBody({ x, y, bodyRadius }: MobOptions) {
+    this.body = Matter.Bodies.circle(x, y, bodyRadius, { frictionAir: 0.1 });
+    this.body.ownerClass = this;
+    physicsEngine.loadBody(this.body);
+  }
+
+  private startTimer() {
+    this.timer = setInterval(() => this.handleTick(), this.timerTickRate);
+  }
+
+  protected handleTick() {}
+
+  protected checkForTarget(ws: CustomWsServer) {
+    const players = Array.from(ws.clients).map((socket) => socket.player);
+
+    const closestPlayer = players.reduce((closest, player) => {
+      const distance = Math.sqrt(
+        (player.body.position.x - this.body.position.x) ** 2 +
+          (player.body.position.y - this.body.position.y) ** 2,
+      );
+
+      if (distance < this.visionRadius) {
+        return !closest || distance < closest.distance
+          ? { player, distance }
+          : closest;
+      }
+
+      return closest;
+    }, null as { player: Player; distance: number } | null);
+
+    this.target = closestPlayer ? closestPlayer.player : null;
+  }
+
+  public handleGameTick(ws: CustomWsServer) {
+    this.checkForTarget(ws);
+  }
+
+  public setTarget(target: Player | null) {
     this.target = target;
   }
 
-  destroy() {
+  public takeDamage(damage: number) {
+    this.health -= damage;
+
+    if (this.health <= 0) {
+      this.destroy();
+    }
+  }
+
+  public destroy() {
     clearInterval(this.timer);
     Matter.World.remove(physicsEngine.getWorld(), this.body);
   }

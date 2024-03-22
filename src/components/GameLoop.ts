@@ -5,6 +5,8 @@ import { CustomWsServer } from "ws";
 import { regenerativeMobRegistry } from "./RegenerativeMobRegistry";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
 import { isEntityNearby } from "@/helpers/isEntityNearby";
+import { physicsEngine } from "./PhysicsEngine";
+import { Collectable } from "@/entities/Collectable";
 
 interface PlayerPayload {
   id: number;
@@ -26,27 +28,24 @@ interface MobPayload {
   health: number;
 }
 
-/**
- * This is the main class of the game. It allows the game to run.
- */
+// TODO: Refactor this class to use a more functional approach
+
 export class GameLoop {
-  private static iterationsPerSecond = 1000 / 15;
-  private static lastUpdate = Date.now();
-  private static previousPlayerPayloads: Record<string, PlayerPayload> = {};
-  private static previousMobPayloads: Record<string, MobPayload> = {};
+  private mainTimerTickRate = 1000 / 15;
+  private mobTimerTickRate = 1000 / 10;
+  private cycleTimerTickRate = 1000 * 5;
 
-  /**
-   * This function is called on every game iteration (iterationsPerSecond)
-   *
-   * @param ws CustomWsServer
-   *
-   * @returns {void}
-   */
-  private static handleTick(ws: CustomWsServer) {
-    ws.clients.forEach((socket) => socket.player.handleTick());
+  private previousPlayerPayloads: Record<string, PlayerPayload> = {};
+  private previousMobPayloads: Record<string, MobPayload> = {};
 
+  private handleMobTimerTick(ws: CustomWsServer) {
     const mobs = regenerativeMobRegistry.getAllMobs();
-    mobs.forEach((mob) => mob.handleGameTick());
+    mobs.forEach((mob) => mob.handleGameTick(ws));
+  }
+
+  private handleMainTimerTick(ws: CustomWsServer) {
+    ws.clients.forEach((socket) => socket.player.handleTick());
+    const mobs = regenerativeMobRegistry.getAllMobs();
 
     const currentPlayerPayloads = Array.from(ws.clients).reduce(
       (acc, socket) => {
@@ -75,9 +74,9 @@ export class GameLoop {
       acc[mobId] = {
         id: mob.id,
         mobTag: mob.mobTag,
-        targetX: mob.targetX,
-        targetY: mob.targetY,
-        health: mob.health,
+        targetX: Math.floor(mob.body.position.x),
+        targetY: Math.floor(mob.body.position.y),
+        health: Math.floor(mob.health),
       };
 
       return acc;
@@ -183,24 +182,56 @@ export class GameLoop {
     });
   }
 
-  /**
-   * Start game loop
-   *
-   * @param ws CustomWsServer
-   *
-   * @returns {this}
-   */
-  static startLoop(ws: CustomWsServer) {
+  private handleCycleTimerTick(ws: CustomWsServer) {
+    ws.clients.forEach((socket) => {
+      socket.player.handleCycle();
+    });
+
+    for (const body of physicsEngine.getBodies()) {
+      if (body.ownerClass instanceof Collectable) {
+        body.ownerClass.regenerate();
+      }
+    }
+  }
+
+  private createTimer(
+    ws: CustomWsServer,
+    tickRate: number,
+    handleTick: (ws: CustomWsServer) => void,
+  ) {
+    let mainTimerLastUpdate = Date.now();
+
     setInterval(() => {
       const now = Date.now();
-      const elapsed = now - this.lastUpdate;
+      const elapsed = now - mainTimerLastUpdate;
 
-      if (elapsed > this.iterationsPerSecond) {
-        this.lastUpdate = now - (elapsed % this.iterationsPerSecond);
-        this.handleTick(ws);
+      if (elapsed > tickRate) {
+        mainTimerLastUpdate = now - (elapsed % tickRate);
+        handleTick(ws);
       }
-    }, this.iterationsPerSecond / 2);
-    console.log("- Game loop started.".cyan);
+    }, tickRate / 2);
+  }
+
+  startLoop(ws: CustomWsServer) {
+    this.createTimer(
+      ws,
+      this.mainTimerTickRate,
+      this.handleMainTimerTick.bind(this, ws),
+    );
+    this.createTimer(
+      ws,
+      this.mobTimerTickRate,
+      this.handleMobTimerTick.bind(this, ws),
+    );
+    this.createTimer(
+      ws,
+      this.cycleTimerTickRate,
+      this.handleCycleTimerTick.bind(this, ws),
+    );
+
+    console.log("Game loop started.".cyan);
     return this;
   }
 }
+
+export const gameLoop = new GameLoop();
