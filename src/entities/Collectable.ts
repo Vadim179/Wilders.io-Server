@@ -20,9 +20,6 @@ interface CollectResult {
   amount: number;
 }
 
-/**
- * This class represents an entity that can be collected (e.g. Tree, Rock, etc.)
- */
 export class Collectable {
   id: string;
   body: Matter.Body;
@@ -61,13 +58,6 @@ export class Collectable {
     this.collectRank = collectRank;
   }
 
-  /**
-   * Collect items from this collectable entity
-   *
-   * @param playerCollectRank Player's collect rank
-   *
-   * @returns {CollectResult}
-   */
   collect(playerCollectRank: CollectRank): CollectResult {
     if (playerCollectRank < this.collectRank || this.amount === 0)
       return { item: null, amount: 0 };
@@ -84,9 +74,6 @@ export class Collectable {
     };
   }
 
-  /**
-   * Regenerate this collectable entity
-   */
   regenerate() {
     if (this.amount === this.storageAmount) return;
 

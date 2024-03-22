@@ -15,22 +15,24 @@ import {
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
 import { EventEmitter } from "stream";
-import { SocketEvent } from "@/enums/socketEvent";
-import { isPlayerNearby } from "@/helpers/isPlayerNearby";
+import { ServerSocketEvent } from "@/enums/socketEvent";
+import { isEntityNearby } from "@/helpers/isEntityNearby";
 import { sendBinaryDataToClient } from "@/helpers/sendBinaryDataToClient";
-import { generatePlayerId } from "@/helpers/generatePlayerId";
-import { broadcastEmitToNearbyPlayers } from "@/helpers/socketEmit";
-
-enum Stat {
-  Hunger = 0,
-  Temperature = 1,
-  Health = 2,
-}
+import { generateEntityId, releaseEntityId } from "@/helpers/generateEntityId";
+import {
+  broadcastEmit,
+  broadcastEmitToNearbyPlayers,
+} from "@/helpers/socketEmit";
+import { Stat } from "@/enums/statEnum";
+import { Mob } from "./Mob";
+import { regenerativeMobRegistry } from "@/components/RegenerativeMobRegistry";
 
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
+
   angle = 0;
+  previousAngle = 0;
 
   private stats = {
     [Stat.Hunger]: 100,
@@ -45,7 +47,9 @@ export class Player extends EventEmitter {
   username: string;
   body: Matter.Body;
   inventory = new Inventory();
+
   nearbyPlayers: Player[] = [];
+  nearbyMobs: Mob[] = [];
 
   isAttacking = false;
   previousX = 0;
@@ -57,7 +61,7 @@ export class Player extends EventEmitter {
   ) {
     super();
 
-    const id = generatePlayerId();
+    const id = generateEntityId("player");
     this.id = id;
     this.socket.id = id;
 
@@ -70,7 +74,7 @@ export class Player extends EventEmitter {
 
     socket.player = this;
 
-    // TODO: Move the map to a reusable function
+    // Emit player initialization
     const otherPlayers = Array.from(this.ws.clients)
       .filter((socket) => socket.id !== this.id)
       .map(({ player }) => [
@@ -79,9 +83,31 @@ export class Player extends EventEmitter {
         Math.round(player.body.position.x),
         Math.round(player.body.position.y),
         player.angle,
+        player.weaponOrTool,
+        player.helmet,
+        Math.round(player.health),
+        Math.round(player.temperature),
+        Math.round(player.hunger),
       ]);
 
-    sendBinaryDataToClient(socket, SocketEvent.Init, [index, id, otherPlayers]);
+    const mobs = regenerativeMobRegistry
+      .getAllMobs()
+      .map((mob) => [
+        mob.mobTag,
+        mob.id,
+        mob.body.position.x,
+        mob.body.position.y,
+        mob.targetX,
+        mob.targetY,
+        mob.health,
+      ]);
+
+    sendBinaryDataToClient(socket, ServerSocketEvent.GameInit, [
+      index,
+      id,
+      otherPlayers,
+      mobs,
+    ]);
 
     this.inventory.on("update", (items: Item[][]) => {
       const hasHelmet = items.some(([item]) => item === this.helmet);
@@ -89,7 +115,6 @@ export class Player extends EventEmitter {
         ([item]) => item === this.weaponOrTool,
       );
 
-      // TODO: Can be done in the client-side
       if (!hasHelmet) this.setHelmet(null);
       if (!hasWeaponOrTool) this.setWeaponOrTool(null);
 
@@ -103,24 +128,12 @@ export class Player extends EventEmitter {
       if (changedSlots.length > 0) {
         sendBinaryDataToClient(
           socket,
-          SocketEvent.InventoryUpdate,
+          ServerSocketEvent.InventoryUpdate,
           changedSlots,
         );
       }
 
       this.inventory.updatePreviousSlots();
-    });
-
-    this.on("stats_update", () => {
-      const statsPayload = [this.health, this.temperature, this.hunger].map(
-        Math.floor,
-      );
-
-      sendBinaryDataToClient(
-        this.socket,
-        SocketEvent.StatsUpdate,
-        statsPayload,
-      );
     });
   }
 
@@ -148,98 +161,49 @@ export class Player extends EventEmitter {
     return CollectRank.R1;
   }
 
-  /**
-   * Handle cycles. Cycles happen every 5 seconds.
-   *
-   * @returns {this}
-   */
   handleCycle() {
-    this.drainStat(Stat.Hunger, 1.5, false);
-    this.drainStat(Stat.Temperature, 2, false);
+    this.drainStat(Stat.Hunger, 1.5);
+    this.drainStat(Stat.Temperature, 2);
 
     // Add health in case the temperature and hunger are over 70%
     if ([this.temperature, this.hunger].every((stat) => stat >= 70)) {
-      this.fillStat(Stat.Health, 10, false);
+      this.fillStat(Stat.Health, 10);
     }
 
     // Drain health in case temperature is 0%
     if (this.temperature === 0) {
-      this.drainStat(Stat.Health, 10, false);
+      this.drainStat(Stat.Health, 10);
     }
 
     // Drain health in case hunger is 0%
     if (this.hunger === 0) {
-      this.drainStat(Stat.Health, 20, false);
+      this.drainStat(Stat.Health, 20);
     }
 
-    this.emit("stats_update", this.stats);
     return this;
   }
 
-  /**
-   * Destroy player (when dying or when disconnecting)
-   *
-   * @returns {this}
-   */
   destroy() {
     Matter.World.remove(physicsEngine.getWorld(), this.body);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.PlayerRemove, this.id);
+    broadcastEmit(this.id, this.ws, ServerSocketEvent.PlayerRemove, this.id);
+    releaseEntityId("player", this.id);
     return this;
   }
 
-  /**
-   * Set the helmet
-   *
-   * @param item
-   *
-   * @returns {this}
-   */
   setHelmet(item: Item | null) {
     const helmet = this.helmet === item ? null : item;
     this.helmet = helmet;
-    sendBinaryDataToClient(this.socket, SocketEvent.HelmetUpdate, helmet);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.HelmetUpdateOther, [
-      this.id,
-      helmet,
-    ]);
     return this;
   }
 
-  /**
-   * Set weapon or tool
-   *
-   * @param item
-   *
-   * @returns {this}
-   */
   setWeaponOrTool(item: Item | null) {
     const weaponOrTool = this.weaponOrTool === item ? null : item;
     this.weaponOrTool = weaponOrTool;
-    sendBinaryDataToClient(
-      this.socket,
-      SocketEvent.WeaponOrToolUpdate,
-      weaponOrTool,
-    );
-    broadcastEmitToNearbyPlayers(this, SocketEvent.WeaponOrToolUpdateOther, [
-      this.id,
-      weaponOrTool,
-    ]);
     return this;
   }
 
-  /**
-   * Set angle of rotation
-   *
-   * @param angle New angle
-   *
-   * @returns {this}
-   */
   setAngle(angle: number) {
     this.angle = angle;
-    broadcastEmitToNearbyPlayers(this, SocketEvent.RotateOther, [
-      this.id,
-      angle,
-    ]);
     return this;
   }
 
@@ -273,26 +237,12 @@ export class Player extends EventEmitter {
     }
   }
 
-  /**
-   * Set movement direction
-   *
-   * @param x X direction
-   * @param y Y direction
-   *
-   * @returns {this}
-   */
   setDirection(x: number, y: number) {
     this.dirX = x === 2 ? -1 : x;
     this.dirY = y === 2 ? -1 : y;
     return this;
   }
 
-  /**
-   * Calculates the new position based on the direction
-   *
-   * @returns {this}
-   */
-  // TODO: Send player movements in larger packets
   calculatePosition() {
     const { dirX, dirY, body } = this;
     const speed = 12;
@@ -306,22 +256,15 @@ export class Player extends EventEmitter {
       y *= invSqrt2;
     }
 
+    x = Math.round(x);
+    y = Math.round(y);
+
     Matter.Body.setVelocity(body, { x, y });
 
     if (
       body.position.x !== this.previousX ||
       body.position.y !== this.previousY
     ) {
-      const position = [
-        Math.round(body.position.x),
-        Math.round(body.position.y),
-      ];
-
-      sendBinaryDataToClient(this.socket, SocketEvent.MovementUpdate, position);
-      broadcastEmitToNearbyPlayers(this, SocketEvent.MovementUpdateOther, [
-        this.id,
-        ...position,
-      ]);
       this.previousX = this.body.position.x;
       this.previousY = this.body.position.y;
     }
@@ -335,11 +278,22 @@ export class Player extends EventEmitter {
     const currentNearbyPlayers = otherPlayers
       .filter(
         (socket) =>
-          socket.player.id !== this.id && isPlayerNearby(this, socket.player),
+          socket.player.id !== this.id &&
+          isEntityNearby(this.body, socket.player.body),
       )
       .map((socket) => socket.player);
 
     this.nearbyPlayers = currentNearbyPlayers;
+  }
+
+  calculateNearbyMobs() {
+    const mobs = regenerativeMobRegistry.getAllMobs();
+
+    const currentNearbyMobs = mobs.filter((mob) =>
+      isEntityNearby(this.body, mob.body),
+    );
+
+    this.nearbyMobs = currentNearbyMobs;
   }
 
   handleTick() {
@@ -348,41 +302,17 @@ export class Player extends EventEmitter {
     return this;
   }
 
-  /**
-   * Drain a stat (minim is 0)
-   *
-   * @param stat
-   * @param value
-   *
-   * @returns {this}
-   */
-  drainStat(stat: Stat, value: number, emit = true) {
+  drainStat(stat: Stat, value: number) {
     this.stats[stat] = Math.max(0, this.stats[stat] - value);
-    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
-  /**
-   * Fill a stat (maximum is 100)
-   *
-   * @param stat
-   * @param value
-   *
-   * @returns {this}
-   */
-  fillStat(stat: Stat, value: number, emit = true) {
+  fillStat(stat: Stat, value: number) {
     this.stats[stat] = Math.min(100, this.stats[stat] + value);
-    if (emit) this.emit("stats_update", { [stat]: this.stats[stat] });
     return this;
   }
 
-  /**
-   * Calculates the entities within the collision range on attack
-   *
-   * @returns {void}
-   */
   attack() {
-    // this.angle is in degrees
     const angle = (this.angle * Math.PI) / 180 - Math.PI / 2;
 
     const attackBodyDistance = 40;
@@ -414,12 +344,15 @@ export class Player extends EventEmitter {
         } else if (body.ownerClass instanceof Player) {
           // TODO: Add weapon damage
           body.ownerClass.drainStat(Stat.Health, 10);
+        } else if (body.ownerClass instanceof Mob) {
+          // TODO: Add weapon damage
+          body.ownerClass.takeDamage(10);
         }
       }
     }
 
-    sendBinaryDataToClient(this.socket, SocketEvent.Attack);
-    broadcastEmitToNearbyPlayers(this, SocketEvent.AttackOther, this.id);
+    sendBinaryDataToClient(this.socket, ServerSocketEvent.Attack);
+    broadcastEmitToNearbyPlayers(this, ServerSocketEvent.AttackOther, this.id);
     return this;
   }
 }

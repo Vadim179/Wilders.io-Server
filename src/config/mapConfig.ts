@@ -9,6 +9,12 @@ export const map = {
       y: 0,
     },
   ],
+  mobSpawners: [
+    {
+      x: 100,
+      y: 0,
+    },
+  ],
   size: {
     width: 1000,
     height: 1000,

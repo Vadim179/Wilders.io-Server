@@ -1,21 +1,21 @@
 import { CustomWsServer, WebSocket } from "ws";
 import { Player } from "./entities/Player";
-import { SocketEvent } from "./enums/socketEvent";
+import { ClientSocketEvent, ServerSocketEvent } from "./enums/socketEvent";
 
-import { CycleSystem } from "./components/CycleSystem";
-import { GameLoop } from "./components/GameLoop";
+import { gameLoop } from "./components/GameLoop";
 import { Crafting } from "./components/Crafting";
+import "./components/RegenerativeMobRegistry";
 
 import { decodeBinaryDataFromClient } from "./helpers/decodeBinaryDataFromClient";
 import { decodeMovement } from "./helpers/decodeMovement";
-import { releasePlayerId } from "./helpers/generatePlayerId";
+
 import {
   broadcastEmit,
   broadcastEmitToNearbyPlayers,
 } from "./helpers/socketEmit";
 
 export function initializeGame(ws: CustomWsServer) {
-  CycleSystem.startCycle(ws), GameLoop.startLoop(ws);
+  gameLoop.startLoop(ws);
 
   ws.on("connection", (socket: WebSocket) => {
     const player = new Player(socket, ws);
@@ -31,10 +31,10 @@ export function initializeGame(ws: CustomWsServer) {
       const [event, data] = decodeBinaryDataFromClient(message.data);
 
       switch (event) {
-        case SocketEvent.Join:
+        case ClientSocketEvent.Join:
           player.username = data;
           console.log(`- Player [${data.underline}] joined.`.yellow);
-          broadcastEmit(player.id, ws, SocketEvent.PlayerInitialization, [
+          broadcastEmit(player.id, ws, ServerSocketEvent.PlayerInitialization, [
             player.id,
             player.username,
             Math.round(player.body.position.x),
@@ -42,11 +42,11 @@ export function initializeGame(ws: CustomWsServer) {
             player.angle,
           ]);
           break;
-        case SocketEvent.Move:
+        case ClientSocketEvent.Move:
           const { x, y } = decodeMovement(data);
           player.setDirection(x, y);
           break;
-        case SocketEvent.AttackStart:
+        case ClientSocketEvent.AttackStart:
           const now = Date.now();
 
           if (now - lastAttackTime >= attackDelay) {
@@ -62,21 +62,21 @@ export function initializeGame(ws: CustomWsServer) {
             }
           }
           break;
-        case SocketEvent.AttackStop:
+        case ClientSocketEvent.AttackStop:
           player.isAttacking = false;
           clearInterval(attackInterval);
           break;
-        case SocketEvent.Craft:
+        case ClientSocketEvent.Craft:
           Crafting.craft(player.inventory, data);
           break;
-        case SocketEvent.UseItem:
+        case ClientSocketEvent.UseItem:
           player.useItem(data);
           break;
-        case SocketEvent.Rotate:
+        case ClientSocketEvent.Rotate:
           player.setAngle(data);
           break;
-        case SocketEvent.Chat:
-          broadcastEmitToNearbyPlayers(player, SocketEvent.Chat, [
+        case ClientSocketEvent.Chat:
+          broadcastEmitToNearbyPlayers(player, ServerSocketEvent.Chat, [
             player.id,
             data.slice(0, 64),
           ]);
@@ -84,9 +84,6 @@ export function initializeGame(ws: CustomWsServer) {
       }
     };
 
-    socket.on("close", () => {
-      player.destroy();
-      releasePlayerId(player.id);
-    });
+    socket.on("close", () => player.destroy());
   });
 }

@@ -10,9 +10,6 @@ import { EntityCategories } from "@/enums/entityCategoriesEnum";
 import { EntityTags } from "@/enums/entityTagsEnum";
 import { Collectable } from "@/entities/Collectable";
 
-/**
- * Used to enable physics in the game (collisions especially)
- */
 class PhysicsEngine {
   engine: Matter.Engine;
 
@@ -25,41 +22,19 @@ class PhysicsEngine {
     this.run();
   }
 
-  /**
-   * Get world
-   *
-   * @returns {Matter.World}
-   */
   getWorld() {
     return this.engine.world;
   }
 
-  /**
-   * Get all bodies
-   *
-   * @returns {Matter.Body[]}
-   */
   getBodies() {
     return this.engine.world.bodies;
   }
 
-  /**
-   * Load a matter-js body into the physics engine
-   *
-   * @param Matter.Body
-   *
-   * @returns {this}
-   */
   loadBody(body: Matter.Body) {
     Matter.World.add(this.engine.world, body);
     return this;
   }
 
-  /**
-   * Load collectables from the map config into the physics engine
-   *
-   * @returns {this}
-   */
   loadCollectables() {
     map.collectables.forEach((resource) => {
       const { id, radius, x, y, size, item } = resource;
@@ -85,13 +60,6 @@ class PhysicsEngine {
     return this;
   }
 
-  /**
-   * Load a player into the physics engine
-   *
-   * @param spawnPosition The initial position of the player
-   *
-   * @returns {Matter.Body}
-   */
   loadPlayer({ x, y }: Position) {
     const airFriction = 0.25;
     const colliderRadius = 40;
@@ -112,11 +80,6 @@ class PhysicsEngine {
     return body;
   }
 
-  /**
-   * Run the physics engine
-   *
-   * @returns {this}
-   */
   run() {
     const runner = Matter.Runner.create();
     Matter.Runner.run(runner, this.engine);
