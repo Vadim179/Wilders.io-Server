@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import { Item } from "@/enums/itemEnum";
+import { InventoryItemStack } from "@/config/craftingRecipes";
 
 class Slot {
   item: Item | null;
@@ -47,11 +48,13 @@ export class Inventory extends EventEmitter {
   }
 
   getChangedSlots() {
-    return this.slots.filter(
-      (slot, i) =>
-        this.previousSlots[i].item !== slot.item ||
-        this.previousSlots[i].amount !== slot.amount,
-    );
+    return this.slots
+      .map((slot, index) => ({ ...slot, index }))
+      .filter(
+        (slot, i) =>
+          this.previousSlots[i].item !== slot.item ||
+          this.previousSlots[i].amount !== slot.amount,
+      );
   }
 
   updatePreviousSlots() {
@@ -67,6 +70,11 @@ export class Inventory extends EventEmitter {
       slot.add(item, amount);
       if (emit) this.emit("update", this.getItems());
     }
+  }
+
+  addItems(items: InventoryItemStack[], emit = true) {
+    items.forEach(({ item, quantity }) => this.addItem(item, quantity, false));
+    if (emit) this.emit("update", this.getItems());
   }
 
   removeItem(item: Item, amount: number, emit = true) {

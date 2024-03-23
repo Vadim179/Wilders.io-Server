@@ -12,6 +12,8 @@ export const itemCategoryMap: Record<number, ItemCategory> = {
   [Item.StoneHelmet]: ItemCategory.Helmet,
   [Item.StonePickaxe]: ItemCategory.Pickaxe,
   [Item.StoneSword]: ItemCategory.Weapon,
+  [Item.RawMeat]: ItemCategory.Food,
+  [Item.WolfFur]: ItemCategory.Resource,
 };
 
 export const helmetResistanceMap: Record<number, number> = {
@@ -31,4 +33,5 @@ export const pickaxeCollectRankMap: Record<number, CollectRank> = {
 
 export const foodRestoreMap: Record<number, number> = {
   [Item.Apple]: 10,
+  [Item.RawMeat]: 2,
 };

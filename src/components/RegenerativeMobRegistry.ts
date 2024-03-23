@@ -1,15 +1,53 @@
 import { map } from "@/config/mapConfig";
 import { AggressiveMob } from "@/entities/AggressiveMob";
 import { Mob } from "@/entities/Mob";
+import { Item } from "@/enums/itemEnum";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
+import { ServerSocketEvent } from "@/enums/socketEvent";
 import { generateEntityId } from "@/helpers/generateEntityId";
+import { emitToAll } from "@/helpers/socketEmit";
+import { CustomWsServer } from "ws";
 
 class RegenerativeMobRegistry {
+  private ws: CustomWsServer;
   private mobs = new Map<RegenerativeMobRegistryTag, Mob[]>();
   private mobRegenerationTimers = new Map<
     RegenerativeMobRegistryTag,
     NodeJS.Timeout
   >();
+
+  initialize(ws: CustomWsServer) {
+    this.ws = ws;
+
+    // Register wolves
+    this.registerMob(RegenerativeMobRegistryTag.Wolf, 1, 5000, true, () => {
+      const id = generateEntityId("wolf");
+
+      const randomSpawnIndex = Math.floor(
+        Math.random() * map.mobSpawners.length,
+      );
+      const { x, y } = map.mobSpawners[randomSpawnIndex];
+
+      return new AggressiveMob({
+        id,
+        x,
+        y,
+        bodyRadius: 40,
+        health: 50,
+        visionRadius: 400,
+        speed: 2,
+        damage: 10,
+        attackRadius: 100,
+        mobTag: RegenerativeMobRegistryTag.Wolf,
+        drops: [
+          { item: Item.WolfFur, quantity: 1 },
+          { item: Item.RawMeat, quantity: 2 },
+        ],
+      });
+    });
+
+    return this;
+  }
 
   registerMob(
     mobTag: RegenerativeMobRegistryTag,
@@ -27,7 +65,15 @@ class RegenerativeMobRegistry {
       const mobs = this.mobs.get(mobTag)!;
 
       if (mobs.length < mobLimit) {
-        mobs.push(onRegenerate());
+        const newMob = onRegenerate();
+        mobs.push(newMob);
+
+        emitToAll(this.ws, ServerSocketEvent.MobInitialization, [
+          newMob.mobTag,
+          newMob.id,
+          Math.floor(newMob.body.position.x),
+          Math.floor(newMob.body.position.y),
+        ]);
       }
     }, regenerateTime);
 
@@ -49,35 +95,9 @@ class RegenerativeMobRegistry {
 
     if (index !== -1) {
       mobs.splice(index, 1);
+      emitToAll(this.ws, ServerSocketEvent.MobRemove, [mobTag, id]);
     }
   }
 }
 
-export const regenerativeMobRegistry =
-  new RegenerativeMobRegistry().registerMob(
-    RegenerativeMobRegistryTag.Wolf,
-    1,
-    5000,
-    true,
-    () => {
-      const id = generateEntityId("wolf");
-
-      const randomSpawnIndex = Math.floor(
-        Math.random() * map.mobSpawners.length,
-      );
-      const { x, y } = map.mobSpawners[randomSpawnIndex];
-
-      return new AggressiveMob({
-        id,
-        x,
-        y,
-        bodyRadius: 40,
-        health: 50,
-        visionRadius: 400,
-        speed: 2,
-        damage: 10,
-        attackRadius: 100,
-        mobTag: RegenerativeMobRegistryTag.Wolf,
-      });
-    },
-  );
+export const regenerativeMobRegistry = new RegenerativeMobRegistry();

@@ -120,10 +120,12 @@ export class Player extends EventEmitter {
 
       const changedSlots = this.inventory
         .getChangedSlots()
-        .reduce<(number | null)[]>((acc, slot, index) => {
-          acc.push(index, slot.item, slot.amount);
+        .reduce<(number | null)[]>((acc, slot) => {
+          acc.push(slot.index, slot.item, slot.amount);
           return acc;
         }, []);
+
+      console.log("slots", changedSlots);
 
       if (changedSlots.length > 0) {
         sendBinaryDataToClient(
@@ -230,6 +232,8 @@ export class Player extends EventEmitter {
       case ItemCategory.Food:
         const restoreAmount = foodRestoreMap[item];
         this.fillStat(Stat.Hunger, restoreAmount);
+        this.inventory.removeItem(item, 1);
+
         break;
       default:
         console.error("Item not usable");
@@ -346,7 +350,7 @@ export class Player extends EventEmitter {
           body.ownerClass.drainStat(Stat.Health, 10);
         } else if (body.ownerClass instanceof Mob) {
           // TODO: Add weapon damage
-          body.ownerClass.takeDamage(10);
+          body.ownerClass.takeDamage(10, this);
         }
       }
     }

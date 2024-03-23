@@ -9,6 +9,7 @@ export enum ServerSocketEvent {
   PlayerRemove = 0x07,
   Chat = 0x08,
   MobInitialization = 0x09,
+  MobRemove = 0x0a,
 }
 
 export enum ClientSocketEvent {
