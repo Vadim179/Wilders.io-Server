@@ -91,6 +91,13 @@ export class Inventory extends EventEmitter {
     }
   }
 
+  removeItems(items: InventoryItemStack[], emit = true) {
+    items.forEach(({ item, quantity }) =>
+      this.removeItem(item, quantity, false),
+    );
+    if (emit) this.emit("update", this.getItems());
+  }
+
   emitUpdate() {
     this.emit("update", this.getItems());
   }
