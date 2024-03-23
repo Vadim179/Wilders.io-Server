@@ -26,9 +26,9 @@ export function initializeGame(ws: CustomWsServer) {
     const attackDelay = 500;
 
     socket.onmessage = function (message) {
-      // console.log(
-      //   `Received message from client [${Date.now()}]`.black.bgYellow,
-      // );
+      console.log(
+        `Received message from client [${Date.now()}]`.black.bgYellow,
+      );
       const [event, data] = decodeBinaryDataFromClient(message.data);
 
       switch (event) {
