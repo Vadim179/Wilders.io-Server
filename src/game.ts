@@ -4,7 +4,7 @@ import { ClientSocketEvent, ServerSocketEvent } from "./enums/socketEvent";
 
 import { gameLoop } from "./components/GameLoop";
 import { Crafting } from "./components/Crafting";
-import "./components/RegenerativeMobRegistry";
+import { regenerativeMobRegistry } from "./components/RegenerativeMobRegistry";
 
 import { decodeBinaryDataFromClient } from "./helpers/decodeBinaryDataFromClient";
 import { decodeMovement } from "./helpers/decodeMovement";
@@ -16,6 +16,7 @@ import {
 
 export function initializeGame(ws: CustomWsServer) {
   gameLoop.startLoop(ws);
+  regenerativeMobRegistry.initialize(ws);
 
   ws.on("connection", (socket: WebSocket) => {
     const player = new Player(socket, ws);
