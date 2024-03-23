@@ -15,6 +15,7 @@ import {
   helmetResistanceMap,
   WeaponDamageMap,
   toolRangeAndRadiusMap,
+  playerSpeedWithEquippedToolMap,
 } from "@/config/itemUseOptions";
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
@@ -260,7 +261,9 @@ export class Player extends EventEmitter {
 
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = 12;
+    const speed = this.weaponOrTool
+      ? playerSpeedWithEquippedToolMap[this.weaponOrTool]
+      : 12;
 
     let x = dirX * speed;
     let y = dirY * speed;

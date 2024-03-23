@@ -65,6 +65,21 @@ export const toolRangeAndRadiusMap: Record<number, toolRangeAndRadiusMap> = {
   [Item.EmeraldSword]: { toolRange: 80, toolRadius: 40 },
 };
 
+export const playerSpeedWithEquippedToolMap: Record<number, number> = {
+  [Item.WoodPickaxe]: 12,
+  [Item.StonePickaxe]: 12,
+  [Item.IronPickaxe]: 12,
+  [Item.GoldPickaxe]: 12,
+  [Item.DiamondPickaxe]: 12,
+  [Item.EmeraldPickaxe]: 12,
+  [Item.WoodSword]: 10,
+  [Item.StoneSword]: 10,
+  [Item.IronSword]: 10,
+  [Item.GoldSword]: 10,
+  [Item.DiamondSword]: 10,
+  [Item.EmeraldSword]: 10,
+};
+
 export const pickaxeCollectRankMap: Record<number, CollectRank> = {
   [Item.WoodPickaxe]: CollectRank.R2,
   [Item.StonePickaxe]: CollectRank.R3,
