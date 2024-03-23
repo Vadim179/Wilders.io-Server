@@ -30,6 +30,10 @@ export interface WeaponDamageMap {
   againstEntity: number;
   againstBuildings: number;
 }
+export interface toolRangeAndRadiusMap {
+  toolRange: number;
+  toolRadius: number;
+}
 
 export const weaponDamageMap: Record<number, WeaponDamageMap> = {
   [Item.WoodPickaxe]: { againstEntity: 5, againstBuildings: 5 },
@@ -44,6 +48,21 @@ export const weaponDamageMap: Record<number, WeaponDamageMap> = {
   [Item.GoldSword]: { againstEntity: 24, againstBuildings: 8 },
   [Item.DiamondSword]: { againstEntity: 27, againstBuildings: 9 },
   [Item.EmeraldSword]: { againstEntity: 30, againstBuildings: 10 },
+};
+
+export const toolRangeAndRadiusMap: Record<number, toolRangeAndRadiusMap> = {
+  [Item.WoodPickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.StonePickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.IronPickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.GoldPickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.DiamondPickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.EmeraldPickaxe]: { toolRange: 60, toolRadius: 40 },
+  [Item.WoodSword]: { toolRange: 80, toolRadius: 40 },
+  [Item.StoneSword]: { toolRange: 80, toolRadius: 40 },
+  [Item.IronSword]: { toolRange: 80, toolRadius: 40 },
+  [Item.GoldSword]: { toolRange: 80, toolRadius: 40 },
+  [Item.DiamondSword]: { toolRange: 80, toolRadius: 40 },
+  [Item.EmeraldSword]: { toolRange: 80, toolRadius: 40 },
 };
 
 export const pickaxeCollectRankMap: Record<number, CollectRank> = {

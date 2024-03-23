@@ -32,7 +32,7 @@ class RegenerativeMobRegistry {
         id,
         x,
         y,
-        bodyRadius: 40,
+        bodyRadius: 75,
         health: 300,
         visionRadius: 350,
         idleSpeed: 2,

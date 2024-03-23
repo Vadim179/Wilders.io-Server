@@ -14,6 +14,7 @@ import {
   weaponDamageMap,
   helmetResistanceMap,
   WeaponDamageMap,
+  toolRangeAndRadiusMap,
 } from "@/config/itemUseOptions";
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
@@ -332,8 +333,12 @@ export class Player extends EventEmitter {
   attack() {
     const angle = (this.angle * Math.PI) / 180 - Math.PI / 2;
 
-    const attackBodyDistance = 40;
-    const attackBodyRadius = 40;
+    const attackBodyDistance = this.weaponOrTool
+      ? toolRangeAndRadiusMap[this.weaponOrTool].toolRange
+      : 40;
+    const attackBodyRadius = this.weaponOrTool
+      ? toolRangeAndRadiusMap[this.weaponOrTool].toolRadius
+      : 40;
 
     const attackPosition = {
       x: this.body.position.x + Math.cos(angle) * attackBodyDistance,
