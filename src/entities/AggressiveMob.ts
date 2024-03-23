@@ -15,7 +15,7 @@ export class AggressiveMob extends Mob {
   private damage: number;
   private attackRadius: number;
   private lastAttackTime = 0;
-  private attackCooldown = 1000;
+  private attackCooldown = 2000;
 
   constructor({ damage, attackRadius, ...baseOptions }: AggressiveMobOptions) {
     super(baseOptions);
@@ -35,7 +35,7 @@ export class AggressiveMob extends Mob {
       directionX /= distance;
       directionY /= distance;
 
-      const speed = this.speed * this.speedMultiplierOnTarget;
+      const speed = this.actionSpeed;
       const velocity = { x: directionX * speed, y: directionY * speed };
       Matter.Body.setVelocity(this.body, velocity);
     } else {
@@ -64,8 +64,8 @@ export class AggressiveMob extends Mob {
 
   private wanderRandomly() {
     const velocity = {
-      x: Math.cos(this.randomWanderAngle) * this.speed,
-      y: Math.sin(this.randomWanderAngle) * this.speed,
+      x: Math.cos(this.randomWanderAngle) * this.idleSpeed,
+      y: Math.sin(this.randomWanderAngle) * this.idleSpeed,
     };
 
     Matter.Body.setVelocity(this.body, velocity);

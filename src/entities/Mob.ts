@@ -12,7 +12,8 @@ export interface MobOptions {
   bodyRadius: number;
   health: number;
   visionRadius: number;
-  speed: number;
+  idleSpeed: number;
+  actionSpeed: number;
   mobTag: RegenerativeMobRegistryTag;
   drops: InventoryItemStack[];
 }
@@ -26,8 +27,8 @@ export class Mob {
 
   public targetX = 0;
   public targetY = 0;
-  public speed = 0;
-  public speedMultiplierOnTarget = 3;
+  public idleSpeed = 0;
+  public actionSpeed = 0;
   public randomWanderAngle = 0;
 
   private timerTickRate = 2000;
@@ -43,12 +44,23 @@ export class Mob {
   }
 
   private initializeProperties(options: MobOptions): void {
-    const { id, x, y, health, speed, visionRadius, mobTag, drops } = options;
+    const {
+      id,
+      x,
+      y,
+      health,
+      idleSpeed,
+      actionSpeed,
+      visionRadius,
+      mobTag,
+      drops,
+    } = options;
 
     this.id = id;
     this.targetX = x;
     this.targetY = y;
-    this.speed = speed;
+    this.idleSpeed = idleSpeed;
+    this.actionSpeed = actionSpeed;
     this.health = health;
     this.visionRadius = visionRadius;
     this.mobTag = mobTag;

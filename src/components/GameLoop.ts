@@ -32,20 +32,16 @@ interface MobPayload {
 
 export class GameLoop {
   private mainTimerTickRate = 1000 / 15;
-  private mobTimerTickRate = 1000 / 10;
   private cycleTimerTickRate = 1000 * 5;
 
   private previousPlayerPayloads: Record<string, PlayerPayload> = {};
   private previousMobPayloads: Record<string, MobPayload> = {};
 
-  private handleMobTimerTick(ws: CustomWsServer) {
-    const mobs = regenerativeMobRegistry.getAllMobs();
-    mobs.forEach((mob) => mob.handleGameTick(ws));
-  }
-
   private handleMainTimerTick(ws: CustomWsServer) {
     ws.clients.forEach((socket) => socket.player.handleTick());
+
     const mobs = regenerativeMobRegistry.getAllMobs();
+    mobs.forEach((mob) => mob.handleGameTick(ws));
 
     const currentPlayerPayloads = Array.from(ws.clients).reduce(
       (acc, socket) => {
@@ -217,11 +213,6 @@ export class GameLoop {
       ws,
       this.mainTimerTickRate,
       this.handleMainTimerTick.bind(this, ws),
-    );
-    this.createTimer(
-      ws,
-      this.mobTimerTickRate,
-      this.handleMobTimerTick.bind(this, ws),
     );
     this.createTimer(
       ws,

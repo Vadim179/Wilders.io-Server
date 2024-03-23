@@ -16,14 +16,34 @@ export const itemCategoryMap: Record<number, ItemCategory> = {
   [Item.WolfFur]: ItemCategory.Resource,
 };
 
-export const helmetResistanceMap: Record<number, number> = {
-  [Item.WoodHelmet]: 5,
-  [Item.StoneHelmet]: 10,
+export interface HelmetResistanceMap {
+  fromPlayer: number;
+  fromMobs: number;
+}
+
+export const helmetResistanceMap: Record<number, HelmetResistanceMap> = {
+  [Item.WoodHelmet]: { fromPlayer: 1, fromMobs: 4 },
+  [Item.StoneHelmet]: { fromPlayer: 2, fromMobs: 8 },
 };
 
-export const weaponDamageMap: Record<number, number> = {
-  [Item.WoodSword]: 10,
-  [Item.StoneSword]: 20,
+export interface WeaponDamageMap {
+  againstEntity: number;
+  againstBuildings: number;
+}
+
+export const weaponDamageMap: Record<number, WeaponDamageMap> = {
+  [Item.WoodPickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.StonePickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.IronPickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.GoldPickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.DiamondPickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.EmeraldPickaxe]: { againstEntity: 5, againstBuildings: 5 },
+  [Item.WoodSword]: { againstEntity: 12, againstBuildings: 4 },
+  [Item.StoneSword]: { againstEntity: 19, againstBuildings: 6 },
+  [Item.IronSword]: { againstEntity: 22, againstBuildings: 7 },
+  [Item.GoldSword]: { againstEntity: 24, againstBuildings: 8 },
+  [Item.DiamondSword]: { againstEntity: 27, againstBuildings: 9 },
+  [Item.EmeraldSword]: { againstEntity: 30, againstBuildings: 10 },
 };
 
 export const pickaxeCollectRankMap: Record<number, CollectRank> = {

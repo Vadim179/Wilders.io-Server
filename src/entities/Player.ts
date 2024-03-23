@@ -11,6 +11,9 @@ import {
   itemCategoryMap,
   pickaxeCollectRankMap,
   foodRestoreMap,
+  weaponDamageMap,
+  helmetResistanceMap,
+  WeaponDamageMap,
 } from "@/config/itemUseOptions";
 import { ItemCategory } from "@/enums/itemCategoryEnum";
 import { Item } from "@/enums/itemEnum";
@@ -27,6 +30,17 @@ import { Stat } from "@/enums/statEnum";
 import { Mob } from "./Mob";
 import { regenerativeMobRegistry } from "@/components/RegenerativeMobRegistry";
 
+const playerHandAttackDamage: WeaponDamageMap = {
+  againstEntity: 5,
+  againstBuildings: 5,
+};
+
+const playerInitialStats = {
+  [Stat.Hunger]: 100,
+  [Stat.Temperature]: 100,
+  [Stat.Health]: 200,
+};
+
 export class Player extends EventEmitter {
   private dirX = 0;
   private dirY = 0;
@@ -34,11 +48,7 @@ export class Player extends EventEmitter {
   angle = 0;
   previousAngle = 0;
 
-  private stats = {
-    [Stat.Hunger]: 100,
-    [Stat.Temperature]: 100,
-    [Stat.Health]: 100,
-  };
+  private stats = { ...playerInitialStats };
 
   helmet: Item | null = null;
   weaponOrTool: Item | null = null;
@@ -312,7 +322,10 @@ export class Player extends EventEmitter {
   }
 
   fillStat(stat: Stat, value: number) {
-    this.stats[stat] = Math.min(100, this.stats[stat] + value);
+    this.stats[stat] = Math.min(
+      playerInitialStats[stat],
+      this.stats[stat] + value,
+    );
     return this;
   }
 
@@ -338,6 +351,11 @@ export class Player extends EventEmitter {
       },
     };
 
+    const damageMap =
+      this.weaponOrTool === null
+        ? playerHandAttackDamage
+        : weaponDamageMap[this.weaponOrTool];
+
     for (const body of physicsEngine.getBodies()) {
       if (body === this.body) continue;
 
@@ -346,11 +364,17 @@ export class Player extends EventEmitter {
           const { item, amount } = body.ownerClass.collect(this.collectRank);
           if (item !== null) this.inventory.addItem(item, amount);
         } else if (body.ownerClass instanceof Player) {
-          // TODO: Add weapon damage
-          body.ownerClass.drainStat(Stat.Health, 10);
+          const otherPlayerHelmetResistance =
+            body.ownerClass.helmet === null
+              ? 0
+              : helmetResistanceMap[body.ownerClass.helmet].fromPlayer;
+
+          body.ownerClass.drainStat(
+            Stat.Health,
+            Math.max(0, damageMap.againstEntity - otherPlayerHelmetResistance),
+          );
         } else if (body.ownerClass instanceof Mob) {
-          // TODO: Add weapon damage
-          body.ownerClass.takeDamage(10, this);
+          body.ownerClass.takeDamage(damageMap.againstEntity, this);
         }
       }
     }
