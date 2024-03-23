@@ -3,6 +3,7 @@ import { Player } from "./Player";
 import { physicsEngine } from "@/components/PhysicsEngine";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
 import { CustomWsServer } from "ws";
+import { InventoryItemStack } from "@/config/craftingRecipes";
 
 export interface MobOptions {
   id: number;
@@ -13,6 +14,7 @@ export interface MobOptions {
   visionRadius: number;
   speed: number;
   mobTag: RegenerativeMobRegistryTag;
+  drops: InventoryItemStack[];
 }
 
 export class Mob {
@@ -20,6 +22,7 @@ export class Mob {
   public health: number;
   public visionRadius: number;
   public mobTag: RegenerativeMobRegistryTag;
+  public drops: InventoryItemStack[];
 
   public targetX = 0;
   public targetY = 0;
@@ -40,7 +43,7 @@ export class Mob {
   }
 
   private initializeProperties(options: MobOptions): void {
-    const { id, x, y, health, speed, visionRadius, mobTag } = options;
+    const { id, x, y, health, speed, visionRadius, mobTag, drops } = options;
 
     this.id = id;
     this.targetX = x;
@@ -49,6 +52,7 @@ export class Mob {
     this.health = health;
     this.visionRadius = visionRadius;
     this.mobTag = mobTag;
+    this.drops = drops;
   }
 
   private initializeBody({ x, y, bodyRadius }: MobOptions) {
@@ -92,10 +96,11 @@ export class Mob {
     this.target = target;
   }
 
-  public takeDamage(damage: number) {
+  public takeDamage(damage: number, player: Player) {
     this.health -= damage;
 
     if (this.health <= 0) {
+      player.inventory.addItems(this.drops);
       this.destroy();
     }
   }

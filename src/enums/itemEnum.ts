@@ -8,4 +8,6 @@ export enum Item {
   StoneHelmet,
   StonePickaxe,
   StoneSword,
+  RawMeat,
+  WolfFur,
 }

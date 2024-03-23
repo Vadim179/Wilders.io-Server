@@ -1,6 +1,7 @@
 import { map } from "@/config/mapConfig";
 import { AggressiveMob } from "@/entities/AggressiveMob";
 import { Mob } from "@/entities/Mob";
+import { Item } from "@/enums/itemEnum";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
 import { generateEntityId } from "@/helpers/generateEntityId";
 
@@ -78,6 +79,10 @@ export const regenerativeMobRegistry =
         damage: 10,
         attackRadius: 100,
         mobTag: RegenerativeMobRegistryTag.Wolf,
+        drops: [
+          { item: Item.WolfFur, quantity: 1 },
+          { item: Item.RawMeat, quantity: 2 },
+        ],
       });
     },
   );

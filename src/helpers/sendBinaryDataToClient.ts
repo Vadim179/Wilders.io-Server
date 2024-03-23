@@ -1,13 +1,13 @@
 import { WebSocket } from "ws";
 import MsgPack from "msgpack-lite";
-import { SocketEvent } from "@/enums/socketEvent";
+import { ServerSocketEvent } from "@/enums/socketEvent";
 
 let totalBytesSent = 0;
 let time = Date.now();
 
 export function sendBinaryDataToClient(
   ws: WebSocket,
-  event: SocketEvent,
+  event: ServerSocketEvent,
   data?: any,
   tdebug = false,
 ) {
@@ -25,18 +25,19 @@ export function sendBinaryDataToClient(
 
   const timeDiff = (Date.now() - time) / 1000;
 
-  if (tdebug) {
-    console.log(
-      `Sent debug message to the client {${messageSize} | ${totalBytesSent}}`
-        .black.bgMagenta,
-    );
-  } else {
-    console.log(
-      `Sent message to the client [${timeDiff}s] {${messageSize} | ${totalBytesSent} | ${
-        totalBytesSent / timeDiff
-      }bps}`.black.bgCyan,
-    );
-  }
+  // if (tdebug) {
+  //   console.log(
+  //     `Sent debug message to the client {${messageSize} | ${totalBytesSent}}`
+  //       .black.bgMagenta,
+  //   );
+  // } else {
+  //   console.log(
+  //     `Sent message to the client [${timeDiff}s] {${messageSize} | ${totalBytesSent} | ${
+  //       totalBytesSent / timeDiff
+  //     }bps}`.black.bgCyan,
+  //   );
+  // }
+
   ws.send(message, { binary: true }, (error) => {
     if (error) {
       console.error("Error sending binary data:", error);
