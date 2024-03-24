@@ -20,7 +20,7 @@ class RegenerativeMobRegistry {
     this.ws = ws;
 
     // Register wolves
-    this.registerMob(RegenerativeMobRegistryTag.Wolf, 50, 5000, true, () => {
+    this.registerMob(RegenerativeMobRegistryTag.Wolf, 1, 5000, true, () => {
       const id = generateEntityId("wolf");
 
       const randomSpawnIndex = Math.floor(
