@@ -4,6 +4,8 @@ import { physicsEngine } from "@/components/PhysicsEngine";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
 import { CustomWsServer } from "ws";
 import { InventoryItemStack } from "@/config/craftingRecipes";
+import { EntityCategories } from "@/enums/entityCategoriesEnum";
+import { EntityTags } from "@/enums/entityTagsEnum";
 
 export interface MobOptions {
   id: number;
@@ -68,7 +70,20 @@ export class Mob {
   }
 
   private initializeBody({ x, y, bodyRadius }: MobOptions) {
-    this.body = Matter.Bodies.circle(x, y, bodyRadius, { frictionAir: 0.1 });
+    const mobCollisionGroup = Matter.Body.nextGroup(true);
+
+    this.body = Matter.Bodies.circle(x, y, bodyRadius, {
+      frictionAir: 0.1,
+      label: EntityTags.Mob,
+      friction: 0,
+      collisionFilter: {
+        group: mobCollisionGroup,
+        category: EntityCategories.Mob,
+        mask:
+          EntityCategories.All &
+          (~EntityCategories.Mob & ~EntityCategories.Player),
+      },
+    });
     this.body.ownerClass = this;
     physicsEngine.loadBody(this.body);
   }
