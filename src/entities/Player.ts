@@ -140,8 +140,6 @@ export class Player extends EventEmitter {
           return acc;
         }, []);
 
-      console.log("slots", changedSlots);
-
       if (changedSlots.length > 0) {
         sendBinaryDataToClient(
           socket,
