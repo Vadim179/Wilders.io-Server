@@ -37,11 +37,14 @@ const playerHandAttackDamage: WeaponDamageMap = {
   againstBuildings: 5,
 };
 
-const playerInitialStats = {
+const initialStats = {
   [Stat.Hunger]: 100,
   [Stat.Temperature]: 100,
   [Stat.Health]: 200,
 };
+
+const defaultSpeed = 12;
+const attackingSpeed = 8;
 
 export class Player extends EventEmitter {
   private dirX = 0;
@@ -50,7 +53,7 @@ export class Player extends EventEmitter {
   angle = 0;
   previousAngle = 0;
 
-  private stats = { ...playerInitialStats };
+  private stats = { ...initialStats };
 
   helmet: Item | null = null;
   weaponOrTool: Item | null = null;
@@ -261,9 +264,12 @@ export class Player extends EventEmitter {
 
   calculatePosition() {
     const { dirX, dirY, body } = this;
-    const speed = this.weaponOrTool
+
+    const speed = this.isAttacking
+      ? attackingSpeed
+      : this.weaponOrTool
       ? playerSpeedWithEquippedToolMap[this.weaponOrTool]
-      : 12;
+      : defaultSpeed;
 
     let x = dirX * speed;
     let y = dirY * speed;
@@ -326,10 +332,7 @@ export class Player extends EventEmitter {
   }
 
   fillStat(stat: Stat, value: number) {
-    this.stats[stat] = Math.min(
-      playerInitialStats[stat],
-      this.stats[stat] + value,
-    );
+    this.stats[stat] = Math.min(initialStats[stat], this.stats[stat] + value);
     return this;
   }
 

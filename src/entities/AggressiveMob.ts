@@ -1,6 +1,5 @@
 import { Stat } from "@/enums/statEnum";
 import { Mob, MobOptions } from "./Mob";
-import { lerp } from "@/helpers/lerp";
 import { regenerativeMobRegistry } from "@/components/RegenerativeMobRegistry";
 import { RegenerativeMobRegistryTag } from "@/enums/regenerativeMobRegistryTagEnum";
 import Matter from "matter-js";
@@ -15,7 +14,7 @@ export class AggressiveMob extends Mob {
   private damage: number;
   private attackRadius: number;
   private lastAttackTime = 0;
-  private attackCooldown = 2000;
+  private attackCooldown = 1500;
 
   constructor({ damage, attackRadius, ...baseOptions }: AggressiveMobOptions) {
     super(baseOptions);
