@@ -29,6 +29,14 @@ export const map = {
       y: 50,
     },
     {
+      id: "stone-2",
+      item: Item.Stone,
+      size: EntitySize.Small,
+      radius: 40,
+      x: 250,
+      y: 30,
+    },
+    {
       id: "tree-1",
       item: Item.Wood,
       size: EntitySize.Medium,
