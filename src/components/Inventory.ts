@@ -61,6 +61,8 @@ export class Inventory extends EventEmitter {
     this.previousSlots = this.slots.map(
       (slot) => new Slot(slot.item, slot.amount),
     );
+
+    return this;
   }
 
   addItem(item: Item, amount: number, emit = true) {
@@ -70,11 +72,14 @@ export class Inventory extends EventEmitter {
       slot.add(item, amount);
       if (emit) this.emit("update", this.getItems());
     }
+
+    return this;
   }
 
   addItems(items: InventoryItemStack[], emit = true) {
     items.forEach(({ item, quantity }) => this.addItem(item, quantity, false));
     if (emit) this.emit("update", this.getItems());
+    return this;
   }
 
   removeItem(item: Item, amount: number, emit = true) {
@@ -89,6 +94,8 @@ export class Inventory extends EventEmitter {
 
       if (emit) this.emit("update", this.getItems());
     }
+
+    return this;
   }
 
   removeItems(items: InventoryItemStack[], emit = true) {
@@ -96,10 +103,13 @@ export class Inventory extends EventEmitter {
       this.removeItem(item, quantity, false),
     );
     if (emit) this.emit("update", this.getItems());
+    return this;
   }
 
   emitUpdate() {
     this.emit("update", this.getItems());
+
+    return this;
   }
 
   private shiftSlots(slot: Slot) {
@@ -110,6 +120,7 @@ export class Inventory extends EventEmitter {
     }
 
     this.slots[this.slots.length - 1] = new Slot();
+    return this;
   }
 
   private getSlotWithItem(item: Item) {
